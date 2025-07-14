@@ -27,6 +27,9 @@ mypy>=1.4.0
 bandit>=1.7.0
 safety>=2.3.0
 
+# Type stubs
+types-pytz>=2023.3.0
+
 # Additional test dependencies
 memory-profiler>=0.60.0
 faker>=18.0.0
