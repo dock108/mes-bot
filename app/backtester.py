@@ -7,7 +7,7 @@ import asyncio
 import logging
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
