@@ -7,7 +7,7 @@ import asyncio
 import logging
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Any
 
 import numpy as np
 import pandas as pd
@@ -43,6 +43,19 @@ class BacktestTrade:
 
     def __post_init__(self):
         self.id = id(self)  # Simple ID for tracking
+
+
+@dataclass
+class DecisionTrace:
+    """Record of each trading decision point"""
+    
+    timestamp: datetime
+    price: float
+    decision: str  # "TRADED", "NO_TRADE", "NEAR_MISS"
+    reasons: List[str]
+    market_conditions: Dict[str, float]
+    near_miss_score: float = 0.0  # 0-1, how close to trading
+    potential_trade: Optional[Dict] = None  # What trade would have looked like
 
 
 class BlackScholesCalculator:
@@ -227,28 +240,85 @@ class LottoGridBacktester:
         current_idx: int,
         implied_move: float,
         last_trade_time: Optional[datetime] = None,
-    ) -> bool:
-        """Determine if conditions are met to place a trade"""
+    ) -> Tuple[bool, Dict[str, Any]]:
+        """Determine if conditions are met to place a trade, return decision details"""
         current_time = price_data.index[current_idx]
+        current_price = price_data.iloc[current_idx]["Close"]
+        reasons = []
+        passed_checks = 0
+        total_checks = 3
+        
+        # Initialize market conditions
+        market_conditions = {
+            "current_price": current_price,
+            "implied_move": implied_move,
+            "volatility_threshold": config.trading.volatility_threshold,
+        }
 
-        # Check minimum time between trades
+        # Check 1: Minimum time between trades
+        can_trade_time = True
         if last_trade_time:
             time_diff = current_time - last_trade_time
+            minutes_since_last = time_diff.total_seconds() / 60
+            market_conditions["minutes_since_last_trade"] = minutes_since_last
+            
             if time_diff < timedelta(minutes=config.trading.min_time_between_trades):
-                return False
+                can_trade_time = False
+                reasons.append(f"Only {minutes_since_last:.1f} minutes since last trade (need {config.trading.min_time_between_trades})")
+            else:
+                passed_checks += 1
+        else:
+            passed_checks += 1
+            market_conditions["minutes_since_last_trade"] = float('inf')
 
-        # Calculate realized range over last 60 minutes (12 periods for 5m data)
+        # Check 2: Sufficient data
         lookback_periods = 12  # 60 minutes / 5 minutes
         start_idx = max(0, current_idx - lookback_periods)
-
         recent_data = price_data.iloc[start_idx : current_idx + 1]
-        if len(recent_data) < 2:
-            return False
+        
+        has_sufficient_data = len(recent_data) >= 2
+        if not has_sufficient_data:
+            reasons.append(f"Insufficient data: only {len(recent_data)} periods available")
+        else:
+            passed_checks += 1
 
-        realized_range = recent_data["High"].max() - recent_data["Low"].min()
-        volatility_threshold = implied_move * config.trading.volatility_threshold
+        # Check 3: Volatility condition
+        volatility_check_passed = False
+        if has_sufficient_data:
+            realized_range = recent_data["High"].max() - recent_data["Low"].min()
+            volatility_threshold = implied_move * config.trading.volatility_threshold
+            volatility_ratio = realized_range / implied_move if implied_move > 0 else 0
+            
+            market_conditions.update({
+                "realized_range": realized_range,
+                "volatility_threshold_value": volatility_threshold,
+                "volatility_ratio": volatility_ratio,
+                "realized_high": recent_data["High"].max(),
+                "realized_low": recent_data["Low"].min(),
+            })
+            
+            volatility_check_passed = realized_range < volatility_threshold
+            if not volatility_check_passed:
+                reasons.append(f"Realized volatility ({volatility_ratio:.1%}) > threshold ({config.trading.volatility_threshold:.1%})")
+            else:
+                passed_checks += 1
+                reasons.append(f"Volatility condition met: {volatility_ratio:.1%} < {config.trading.volatility_threshold:.1%}")
 
-        return bool(realized_range < volatility_threshold)
+        # Calculate near-miss score
+        near_miss_score = passed_checks / total_checks
+        
+        # Determine if we should trade
+        should_trade = can_trade_time and has_sufficient_data and volatility_check_passed
+        
+        decision_info = {
+            "can_trade": should_trade,
+            "reasons": reasons,
+            "market_conditions": market_conditions,
+            "near_miss_score": near_miss_score,
+            "checks_passed": f"{passed_checks}/{total_checks}",
+        }
+        
+        return should_trade, decision_info
 
     def place_strangle(
         self,
@@ -399,21 +469,26 @@ class LottoGridBacktester:
             open_trades = []
             max_drawdown = 0
             peak_capital = initial_capital
+            decision_traces = []  # Collect all trading decisions
 
             # Group by trading days
             daily_groups = price_data.groupby(price_data.index.date)
 
             for trading_date, day_data in daily_groups:
-                logger.debug(f"Processing {trading_date}")
+                logger.info(f"Processing {trading_date} with {len(day_data)} data points")
 
                 # Skip weekends
                 if trading_date.weekday() >= 5:
+                    logger.info(f"  Skipping weekend: {trading_date}")
                     continue
 
                 # Filter to market hours (9:30 AM - 4:00 PM ET)
                 day_data = day_data.between_time("09:30", "16:00")
                 if day_data.empty:
+                    logger.info(f"  No data during market hours for {trading_date}")
                     continue
+                
+                logger.info(f"  Market hours data points: {len(day_data)}")
 
                 # Calculate daily implied volatility
                 volatility = self.calculate_implied_volatility(day_data)
@@ -426,7 +501,10 @@ class LottoGridBacktester:
                         break
 
                 if session_start_idx is None:
+                    logger.warning(f"  No data after 9:35 AM for {trading_date}")
                     continue
+                
+                logger.info(f"  Session start index: {session_start_idx}, time: {day_data.index[session_start_idx]}")
 
                 # Calculate implied move from ATM straddle
                 opening_price = day_data.iloc[session_start_idx]["Close"]
@@ -476,15 +554,46 @@ class LottoGridBacktester:
                         open_trades.remove(trade)
 
                     # Check for new trade entry (after 9:35 and before 3:30)
+                    # Always check decisions during trading hours for trace
                     if (
                         idx >= session_start_idx
                         and current_time.time() < pd.Timestamp("15:30").time()
-                        and len(open_trades) < config.trading.max_open_trades
                         and time_to_expiry > 0.5 / 24
-                    ):  # At least 30 minutes to expiry
-                        should_trade = self.should_place_trade(
+                    ):
+                        should_trade, decision_info = self.should_place_trade(
                             day_data, idx, implied_move, last_trade_time
                         )
+                        
+                        if idx % 12 == 0:  # Log every hour
+                            logger.debug(f"  Decision at {current_time}: should_trade={should_trade}, near_miss={decision_info['near_miss_score']:.2f}")
+                        
+                        # Add position limit check to decision info
+                        if len(open_trades) >= config.trading.max_open_trades:
+                            decision_info["reasons"].append(f"Max positions reached ({config.trading.max_open_trades})")
+                            decision_info["near_miss_score"] *= 0.9
+                        
+                        # Calculate potential trade details
+                        strike_pairs = self.calculate_strike_levels(current_price, implied_move)
+                        if strike_pairs:
+                            call_strike, put_strike = strike_pairs[0]
+                            decision_info["potential_trade"] = {
+                                "call_strike": call_strike,
+                                "put_strike": put_strike,
+                                "estimated_premium": implied_move * 0.1,  # Rough estimate
+                            }
+                        
+                        # Create decision trace
+                        decision = "TRADED" if should_trade else ("NEAR_MISS" if decision_info["near_miss_score"] > 0.5 else "NO_TRADE")
+                        trace = DecisionTrace(
+                            timestamp=current_time,
+                            price=current_price,
+                            decision=decision,
+                            reasons=decision_info["reasons"],
+                            market_conditions=decision_info["market_conditions"],
+                            near_miss_score=decision_info["near_miss_score"],
+                            potential_trade=decision_info.get("potential_trade"),
+                        )
+                        decision_traces.append(trace)
 
                         if should_trade:
                             # Calculate strikes
@@ -512,6 +621,13 @@ class LottoGridBacktester:
                                         f"Placed strangle at {current_time}: "
                                         f"{call_strike}C/{put_strike}P for ${trade.total_premium:.2f}"
                                     )
+                                else:
+                                    # Update trace if trade failed
+                                    trace.decision = "NO_TRADE"
+                                    if not trade:
+                                        trace.reasons.append("Failed to calculate option premiums")
+                                    elif capital < trade.total_premium:
+                                        trace.reasons.append(f"Insufficient capital: ${capital:.2f} < ${trade.total_premium:.2f}")
 
                 # End of day - close any remaining trades
                 for trade in open_trades:
@@ -566,6 +682,7 @@ class LottoGridBacktester:
                 "sharpe_ratio": sharpe_ratio,
                 "trades": trades,
                 "daily_pnl": daily_pnl,
+                "decision_traces": decision_traces,  # Include decision trace data
             }
 
             logger.info(f"Backtest completed:")
@@ -573,6 +690,7 @@ class LottoGridBacktester:
             logger.info(f"  Win rate: {win_rate:.2%}")
             logger.info(f"  Max drawdown: ${max_drawdown:.2f}")
             logger.info(f"  Total trades: {total_trades}")
+            logger.info(f"  Decision traces collected: {len(decision_traces)}")
 
             return results
 

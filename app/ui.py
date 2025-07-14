@@ -713,7 +713,20 @@ class Dashboard:
 
                 # Equity curve
                 if results["daily_pnl"]:
+                    # Transform backtester data to match expected chart format
                     equity_data = pd.DataFrame(results["daily_pnl"])
+                    
+                    # Rename columns to match what create_equity_chart expects
+                    equity_data = equity_data.rename(columns={
+                        "date": "Date",
+                        "capital": "Cumulative Equity", 
+                        "pnl": "Daily P&L"
+                    })
+                    
+                    # Add missing columns for complete functionality
+                    equity_data["Trades"] = 0  # Default value, could be enhanced later
+                    equity_data["Win Rate"] = 0.0  # Default value, could be enhanced later
+                    
                     equity_chart = self.create_equity_chart(equity_data)
                     if equity_chart:
                         st.plotly_chart(equity_chart, use_container_width=True)
@@ -737,6 +750,97 @@ class Dashboard:
 
                     trade_df = pd.DataFrame(trade_data)
                     st.dataframe(trade_df, use_container_width=True, hide_index=True)
+
+                # Decision Trace Analysis
+                if "decision_traces" in results:
+                    st.subheader("📊 Trading Decision Analysis")
+                    
+                    if not results["decision_traces"]:
+                        st.info("No trading decisions were evaluated during this backtest period. This may happen if the market was closed or data was insufficient.")
+                    else:
+                        traces = results["decision_traces"]
+                        total_decisions = len(traces)
+                        near_misses = [t for t in traces if t.near_miss_score > 0.5 and t.decision != "TRADED"]
+                        trades_taken = [t for t in traces if t.decision == "TRADED"]
+                        
+                        # Summary metrics
+                        col1, col2, col3, col4 = st.columns(4)
+                        with col1:
+                            st.metric("Total Decision Points", total_decisions)
+                        with col2:
+                            st.metric("Near Misses", len(near_misses))
+                        with col3:
+                            st.metric("Trades Taken", len(trades_taken))
+                        with col4:
+                            avg_near_miss = sum(t.near_miss_score for t in traces) / len(traces) if traces else 0
+                            st.metric("Avg Near-Miss Score", f"{avg_near_miss:.2%}")
+                        
+                        # Show detailed trace toggle
+                        show_trace = st.checkbox("Show Detailed Decision Trace", value=False)
+                        
+                        if show_trace:
+                            # Filter options
+                            trace_filter = st.selectbox(
+                                "Filter decisions:",
+                                ["All", "Near Misses Only", "Trades Only", "Failed Checks Only"]
+                            )
+                            
+                            # Filter traces based on selection
+                            filtered_traces = traces
+                            if trace_filter == "Near Misses Only":
+                                filtered_traces = near_misses
+                            elif trace_filter == "Trades Only":
+                                filtered_traces = trades_taken
+                            elif trace_filter == "Failed Checks Only":
+                                filtered_traces = [t for t in traces if t.near_miss_score < 0.5]
+                            
+                            # Group by date for better organization
+                            traces_by_date = {}
+                            for trace in filtered_traces:
+                                date_key = trace.timestamp.date()
+                                if date_key not in traces_by_date:
+                                    traces_by_date[date_key] = []
+                                traces_by_date[date_key].append(trace)
+                            
+                            # Display traces by date
+                            for date_key in sorted(traces_by_date.keys(), reverse=True):
+                                with st.expander(f"📅 {date_key} - {len(traces_by_date[date_key])} decisions"):
+                                    for trace in traces_by_date[date_key]:
+                                        # Color coding based on decision
+                                        if trace.decision == "TRADED":
+                                            st.success(f"✅ **{trace.timestamp.strftime('%H:%M:%S')}** - TRADED at ${trace.price:.2f}")
+                                        elif trace.near_miss_score > 0.7:
+                                            st.warning(f"⚠️ **{trace.timestamp.strftime('%H:%M:%S')}** - NEAR MISS (Score: {trace.near_miss_score:.2%}) at ${trace.price:.2f}")
+                                        else:
+                                            st.info(f"ℹ️ **{trace.timestamp.strftime('%H:%M:%S')}** - NO TRADE (Score: {trace.near_miss_score:.2%}) at ${trace.price:.2f}")
+                                        
+                                        # Show reasons
+                                        with st.container():
+                                            st.write("**Reasons:**")
+                                            for reason in trace.reasons:
+                                                st.write(f"• {reason}")
+                                            
+                                            # Show market conditions
+                                            if st.checkbox(f"Show market conditions", key=f"mc_{trace.timestamp}"):
+                                                conditions = trace.market_conditions
+                                                cols = st.columns(3)
+                                                with cols[0]:
+                                                    st.write(f"**Implied Move:** ${conditions.get('implied_move', 0):.2f}")
+                                                    st.write(f"**Current Price:** ${conditions.get('current_price', 0):.2f}")
+                                                with cols[1]:
+                                                    st.write(f"**Realized Range:** ${conditions.get('realized_range', 0):.2f}")
+                                                    st.write(f"**Volatility Ratio:** {conditions.get('volatility_ratio', 0):.1%}")
+                                                with cols[2]:
+                                                    st.write(f"**Minutes Since Trade:** {conditions.get('minutes_since_last_trade', 'N/A')}")
+                                                    st.write(f"**Vol Threshold:** {conditions.get('volatility_threshold', 0):.1%}")
+                                            
+                                            # Show potential trade if available
+                                            if trace.potential_trade:
+                                                st.write("**Potential Trade:**")
+                                                st.write(f"• Strikes: {trace.potential_trade['call_strike']:.0f}C / {trace.potential_trade['put_strike']:.0f}P")
+                                                st.write(f"• Est. Premium: ${trace.potential_trade['estimated_premium']:.2f}")
+                                        
+                                        st.divider()
 
                 # Save backtest option
                 backtest_name = st.text_input(
