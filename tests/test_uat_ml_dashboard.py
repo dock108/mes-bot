@@ -252,7 +252,7 @@ class TestMLModelPerformanceDisplay:
                 is_active=True
             )
             session.add(model)
-            session.commit()
+            session.flush()  # Flush to get the ID
             
             # Create prediction history with varying performance
             predictions = []
@@ -302,6 +302,11 @@ class TestMLModelPerformanceDisplay:
                         })
                 
                 df = pd.DataFrame(prediction_data)
+                
+                # Return empty DataFrame if no data
+                if len(df) == 0:
+                    return pd.DataFrame(columns=['timestamp', 'correct', 'confidence', 'rolling_accuracy'])
+                    
                 df = df.sort_values('timestamp')
                 
                 # Calculate rolling accuracy

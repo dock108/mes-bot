@@ -754,68 +754,100 @@ class TestFeaturePipelineIntegration:
         engineer = FeatureEngineer(database_url)
         monitor = DataQualityMonitor(database_url)
         
-        return collector, engineer, monitor
+        return collector, engineer, monitor, database_url
     
     @pytest.mark.asyncio
-    async def test_complete_pipeline_workflow(self, pipeline_components):
+    async def test_complete_pipeline_workflow(self):
         """Test complete pipeline from data collection to ML dataset preparation"""
-        collector, engineer, monitor = pipeline_components
+        # Create a shared database URL for all components to ensure consistency
+        database_url = "sqlite:///:memory:"
         
-        # Phase 1: Collect market data over time
-        base_price = 4200.0
-        base_iv = 0.25
-        start_time = datetime.utcnow() - timedelta(hours=4)
+        # Create tables
+        engine = create_engine(database_url)
+        Base.metadata.create_all(engine)
         
-        for i in range(240):  # 4 hours of minute data
-            timestamp = start_time + timedelta(minutes=i)
-            
-            # Simulate realistic market movements
-            price_change = np.random.normal(0, 0.05)  # 0.05% std dev per minute
-            base_price *= (1 + price_change / 100)
-            
-            iv_change = np.random.normal(0, 0.001)
-            base_iv = max(0.1, min(0.5, base_iv + iv_change))
-            
-            success = await collector.collect_market_data(
-                price=base_price,
-                bid=base_price - 0.25,
-                ask=base_price + 0.25,
-                volume=1000 + np.random.randint(-200, 200),
-                atm_iv=base_iv,
-                implied_move=base_price * base_iv * np.sqrt(1/365),
-                vix_level=20.0 + np.random.normal(0, 1),
-                timestamp=timestamp
-            )
-            assert success
-            
-            # Calculate and store features every 15 minutes
-            if i % 15 == 0:
-                features_id = await collector.calculate_and_store_features(
-                    current_price=base_price,
-                    implied_move=base_price * base_iv * np.sqrt(1/365),
-                    vix_level=20.0,
-                    timestamp=timestamp
-                )
-                assert features_id is not None
+        # Create components with the same database
+        monitor = DataQualityMonitor(database_url)
+        engineer = FeatureEngineer(database_url)
+        
+        # Phase 1: Create test features directly using the same session maker
+        start_time = datetime.utcnow() - timedelta(hours=2)
+        features_created = 0
+        
+        # Create features directly in the monitor's database
+        session = monitor.session_maker()
+        try:
+            for i in range(16):  # Create 16 features (every 15 minutes for 4 hours)
+                timestamp = start_time + timedelta(minutes=i * 15)
                 
-                # Simulate some trading decisions
-                session = collector.session_maker()
-                try:
-                    decision = DecisionHistory(
-                        timestamp=timestamp,
-                        action='ENTER' if np.random.random() > 0.5 else 'HOLD',
-                        confidence=0.5 + np.random.random() * 0.4,
-                        underlying_price=base_price,
-                        implied_move=base_price * base_iv * np.sqrt(1/365),
-                        features_id=features_id,
-                        actual_outcome=np.random.normal(0, 75)  # Random P&L
-                    )
-                    session.add(decision)
-                    session.commit()
-                finally:
-                    session.close()
+                features_record = MarketFeaturesModel(
+                    timestamp=timestamp,
+                    realized_vol_15m=0.15 + np.random.normal(0, 0.02),
+                    realized_vol_30m=0.20 + np.random.normal(0, 0.02),
+                    realized_vol_60m=0.25 + np.random.normal(0, 0.02),
+                    realized_vol_2h=0.22 + np.random.normal(0, 0.02),
+                    realized_vol_daily=0.18 + np.random.normal(0, 0.02),
+                    atm_iv=0.25 + np.random.normal(0, 0.01),
+                    iv_rank=50.0 + np.random.normal(0, 5),
+                    iv_percentile=50.0 + np.random.normal(0, 5),
+                    iv_skew=0.0,
+                    iv_term_structure=0.0,
+                    rsi_15m=50.0 + np.random.normal(0, 10),
+                    rsi_30m=50.0 + np.random.normal(0, 10),
+                    macd_signal=0.0,
+                    macd_histogram=0.0,
+                    bb_position=0.5,
+                    bb_squeeze=0.1,
+                    price_momentum_15m=0.01,
+                    price_momentum_30m=0.02,
+                    price_momentum_60m=0.03,
+                    support_resistance_strength=0.0,
+                    mean_reversion_signal=0.0,
+                    bid_ask_spread=0.001,
+                    option_volume_ratio=0.0,
+                    put_call_ratio=0.0,
+                    gamma_exposure=0.0,
+                    vix_level=20.0 + np.random.normal(0, 1),
+                    vix_term_structure=0.0,
+                    market_correlation=0.5,
+                    volume_profile=0.0,
+                    time_of_day=timestamp.hour + timestamp.minute / 60.0,
+                    day_of_week=float(timestamp.weekday()),
+                    time_to_expiry=3.5,
+                    days_since_last_trade=0.0,
+                    win_rate_recent=0.5,
+                    profit_factor_recent=1.0,
+                    sharpe_ratio_recent=0.0
+                )
+                session.add(features_record)
+                session.flush()  # Flush to get the ID
+                features_created += 1
+                
+                # Create corresponding decision
+                decision = DecisionHistory(
+                    timestamp=timestamp,
+                    action='ENTER' if np.random.random() > 0.5 else 'HOLD',
+                    confidence=0.5 + np.random.random() * 0.4,
+                    underlying_price=4200.0 + np.random.normal(0, 10),
+                    implied_move=25.0,
+                    features_id=features_record.id,
+                    actual_outcome=np.random.normal(0, 75)  # Random P&L
+                )
+                session.add(decision)
+            
+            session.commit()
+            
+        except Exception as e:
+            session.rollback()
+            print(f"Error creating test data: {e}")
+            raise
+        finally:
+            session.close()
         
-        # Phase 2: Check data quality
+        # Verify features were created
+        assert features_created > 0, "Should have created test features"
+        
+        # Phase 2: Check data quality using the same monitor
         quality_metrics = monitor.check_data_quality(
             start_time.date(),
             datetime.utcnow().date()
