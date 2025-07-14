@@ -651,10 +651,14 @@ class DataQualityMonitor:
         session = self.session_maker()
         try:
             # Query recent features
+            # Convert dates to datetime for proper comparison
+            start_datetime = datetime.combine(start_date, datetime.min.time())
+            end_datetime = datetime.combine(end_date, datetime.max.time())
+            
             features = session.query(MarketFeaturesModel).filter(
                 and_(
-                    MarketFeaturesModel.timestamp >= start_date,
-                    MarketFeaturesModel.timestamp <= end_date
+                    MarketFeaturesModel.timestamp >= start_datetime,
+                    MarketFeaturesModel.timestamp <= end_datetime
                 )
             ).all()
             

@@ -229,7 +229,7 @@ class LottoGridBacktester:
         realized_range = recent_data['High'].max() - recent_data['Low'].min()
         volatility_threshold = implied_move * config.trading.volatility_threshold
         
-        return realized_range < volatility_threshold
+        return bool(realized_range < volatility_threshold)
     
     def place_strangle(self, underlying_price: float, call_strike: float, put_strike: float,
                       time_to_expiry: float, volatility: float, entry_time: datetime,

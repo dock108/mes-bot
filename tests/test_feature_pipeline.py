@@ -561,8 +561,9 @@ class TestDataQualityMonitor:
     
     def test_check_data_quality_good_data(self, monitor, quality_test_data):
         """Test data quality check with good data"""
-        start_date = (datetime.utcnow() - timedelta(days=1)).date()
-        end_date = datetime.utcnow().date()
+        # Use timestamps that match the fixture data (last hour)
+        start_date = (datetime.utcnow() - timedelta(hours=1)).date()
+        end_date = (datetime.utcnow() + timedelta(hours=1)).date()
         
         quality_metrics = monitor.check_data_quality(start_date, end_date)
         
