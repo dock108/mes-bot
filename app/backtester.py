@@ -143,7 +143,8 @@ class LottoGridBacktester:
             raise ValueError(f"Unable to fetch data from any source. Last error: {str(last_error)}")
         else:
             raise ValueError(
-                f"No data found for {symbol} between {start_date} and {end_date}. Note: Yahoo Finance only provides intraday data for the last 60 days."
+                f"No data found for {symbol} between {start_date} and {end_date}. "
+                f"Note: Yahoo Finance only provides intraday data for the last 60 days."
             )
 
     def calculate_implied_volatility(self, price_data: pd.DataFrame, window: int = 20) -> float:
@@ -508,7 +509,8 @@ class LottoGridBacktester:
                                     last_trade_time = current_time
 
                                     logger.debug(
-                                        f"Placed strangle at {current_time}: {call_strike}C/{put_strike}P for ${trade.total_premium:.2f}"
+                                        f"Placed strangle at {current_time}: "
+                                        f"{call_strike}C/{put_strike}P for ${trade.total_premium:.2f}"
                                     )
 
                 # End of day - close any remaining trades

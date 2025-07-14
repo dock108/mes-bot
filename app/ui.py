@@ -831,10 +831,12 @@ class Dashboard:
 
             st.subheader("Market Hours")
             st.write(
-                f"**Market Open:** {config.market_hours.market_open_hour:02d}:{config.market_hours.market_open_minute:02d} ET"
+                f"**Market Open:** "
+                f"{config.market_hours.market_open_hour:02d}:{config.market_hours.market_open_minute:02d} ET"
             )
             st.write(
-                f"**Market Close:** {config.market_hours.market_close_hour:02d}:{config.market_hours.market_close_minute:02d} ET"
+                f"**Market Close:** "
+                f"{config.market_hours.market_close_hour:02d}:{config.market_hours.market_close_minute:02d} ET"
             )
             st.write(
                 f"**Flatten Time:** {config.market_hours.flatten_hour:02d}:{config.market_hours.flatten_minute:02d} ET"
