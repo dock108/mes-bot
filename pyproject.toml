@@ -37,9 +37,8 @@ dependencies = [
     "pydantic>=2.0.0",
 ]
 
-[tool.setuptools.packages.find]
-include = ["app*"]
-exclude = ["tests*", "models*", "deploy*", "data*"]
+[tool.setuptools]
+packages = ["app"]
 
 [project.optional-dependencies]
 dev = [

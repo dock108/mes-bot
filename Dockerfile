@@ -23,15 +23,17 @@ RUN pip install poetry
 WORKDIR /app
 
 # Copy poetry files
-COPY pyproject.toml poetry.lock* ./
+COPY pyproject.toml ./
 
-# Install dependencies
+# Install dependencies (poetry will create lock file)
 RUN poetry install --without dev && rm -rf $POETRY_CACHE_DIR
 
 # Copy application code
 COPY app/ ./app/
 COPY data/ ./data/
-COPY logs/ ./logs/
+
+# Create logs directory
+RUN mkdir -p ./logs/
 
 # Create non-root user
 RUN useradd --create-home --shell /bin/bash app
