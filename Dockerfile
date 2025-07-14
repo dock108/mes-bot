@@ -1,6 +1,6 @@
 # Multi-stage Dockerfile for MES 0DTE Lotto-Grid Options Bot
 
-FROM python:3.10-slim as base
+FROM python:3.11-slim AS base
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1
@@ -26,11 +26,13 @@ WORKDIR /app
 COPY pyproject.toml ./
 
 # Install dependencies (poetry will create lock file)
-RUN poetry install --without dev && rm -rf $POETRY_CACHE_DIR
+RUN poetry install --no-root && rm -rf $POETRY_CACHE_DIR
 
 # Copy application code
 COPY app/ ./app/
-COPY data/ ./data/
+
+# Create empty data directory (runtime database will be mounted or created)
+RUN mkdir -p ./data/
 
 # Create logs directory
 RUN mkdir -p ./logs/
@@ -47,13 +49,13 @@ EXPOSE 8501
 CMD ["poetry", "run", "python", "-m", "app.bot"]
 
 # --- Development stage ---
-FROM base as development
+FROM base AS development
 
 # Switch back to root for development tools
 USER root
 
-# Install development dependencies
-RUN poetry install && rm -rf $POETRY_CACHE_DIR
+# Install development dependencies  
+RUN poetry install --no-root --with dev && rm -rf $POETRY_CACHE_DIR
 
 # Install additional development tools
 RUN apt-get update && apt-get install -y \
@@ -65,7 +67,7 @@ RUN apt-get update && apt-get install -y \
 USER app
 
 # --- Production stage ---
-FROM base as production
+FROM base AS production
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
