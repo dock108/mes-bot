@@ -1,6 +1,7 @@
 """
 UAT tests for dashboard UI components and navigation
 """
+
 import pytest
 from playwright.sync_api import Page, expect
 

@@ -3,29 +3,31 @@ User Acceptance Testing (UAT) for ML dashboard components.
 Tests the user interface, user experience, and end-user workflows
 for the ML-enhanced trading bot dashboard.
 """
-import pytest
+
 import asyncio
-import pandas as pd
+from datetime import date, datetime, timedelta
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
+
 import numpy as np
-from datetime import datetime, date, timedelta
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
-from sqlalchemy import create_engine
+import pandas as pd
+import pytest
 import streamlit as st
+from sqlalchemy import create_engine
 from streamlit.testing.v1 import AppTest
 
+from app.decision_engine import DecisionEngine, TradingSignal
+from app.enhanced_strategy import EnhancedLottoGridStrategy
 from app.models import (
     Base,
-    Trade,
+    DecisionHistory,
     MarketData,
     MarketFeatures,
-    DecisionHistory,
     MLModelMetadata,
     MLPrediction,
     PerformanceMetrics,
+    Trade,
     get_session_maker,
 )
-from app.enhanced_strategy import EnhancedLottoGridStrategy
-from app.decision_engine import TradingSignal, DecisionEngine
 
 
 class TestMLDashboardBasicFunctionality:
@@ -88,9 +90,9 @@ class TestMLDashboardBasicFunctionality:
                     underlying_price=4200.0 + np.random.normal(0, 5),
                     implied_move=25.0,
                     model_predictions={"entry_model": np.random.uniform(0.3, 0.9)},
-                    actual_outcome=np.random.uniform(-50, 100)
-                    if np.random.random() > 0.5
-                    else None,
+                    actual_outcome=(
+                        np.random.uniform(-50, 100) if np.random.random() > 0.5 else None
+                    ),
                 )
                 for i in range(48)  # Last 48 hours
             ]
@@ -106,9 +108,9 @@ class TestMLDashboardBasicFunctionality:
                     prediction_value=np.random.uniform(0.3, 0.9),
                     confidence=np.random.uniform(0.5, 0.95),
                     actual_outcome=np.random.choice([0, 1]) if np.random.random() > 0.3 else None,
-                    prediction_error=np.random.uniform(0.1, 0.5)
-                    if np.random.random() > 0.3
-                    else None,
+                    prediction_error=(
+                        np.random.uniform(0.1, 0.5) if np.random.random() > 0.3 else None
+                    ),
                 )
                 for i in range(72)  # Last 72 hours
             ]
@@ -176,9 +178,11 @@ class TestMLDashboardBasicFunctionality:
                             "Type": model.model_type,
                             "Accuracy": f"{model.validation_accuracy:.2%}",
                             "Status": "Active" if model.is_active else "Inactive",
-                            "Last Trained": model.trained_on.strftime("%Y-%m-%d")
-                            if model.trained_on
-                            else "Never",
+                            "Last Trained": (
+                                model.trained_on.strftime("%Y-%m-%d")
+                                if model.trained_on
+                                else "Never"
+                            ),
                         }
                     )
 
@@ -501,9 +505,11 @@ class TestRealTimeDataDisplay:
                     "timestamp": datetime.utcnow() + timedelta(minutes=i * 10),
                     "action": np.random.choice(["ENTER", "HOLD"], p=[0.3, 0.7]),
                     "confidence": np.random.uniform(0.4, 0.9),
-                    "reasoning": ["Low volatility", "High IV rank"]
-                    if np.random.random() > 0.5
-                    else ["High volatility"],
+                    "reasoning": (
+                        ["Low volatility", "High IV rank"]
+                        if np.random.random() > 0.5
+                        else ["High volatility"]
+                    ),
                     "ml_signal": np.random.uniform(0.3, 0.8),
                     "basic_signal": np.random.choice([True, False]),
                 }

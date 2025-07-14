@@ -1,13 +1,15 @@
 """
 Tests for the backtesting engine
 """
-import pytest
-import pandas as pd
-import numpy as np
-from datetime import datetime, date, timedelta
+
+from datetime import date, datetime, timedelta
 from unittest.mock import Mock, patch
 
-from app.backtester import LottoGridBacktester, BlackScholesCalculator, BacktestTrade
+import numpy as np
+import pandas as pd
+import pytest
+
+from app.backtester import BacktestTrade, BlackScholesCalculator, LottoGridBacktester
 
 
 class TestBlackScholesCalculator:

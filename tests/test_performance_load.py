@@ -3,26 +3,28 @@ Performance and load testing suite for the ML-enhanced trading bot.
 Tests system performance under various load conditions and validates
 real-time trading requirements.
 """
-import pytest
+
 import asyncio
-import time
+import gc
 import threading
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime, timedelta
+from unittest.mock import AsyncMock, Mock, patch
+
 import numpy as np
 import pandas as pd
-from datetime import datetime, timedelta
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from unittest.mock import Mock, AsyncMock, patch
-from sqlalchemy import create_engine, text
-from memory_profiler import profile
 import psutil
-import gc
+import pytest
+from memory_profiler import profile
+from sqlalchemy import create_engine, text
 
-from app.models import Base, MarketData, MarketFeatures, DecisionHistory, get_session_maker
-from app.feature_pipeline import FeatureCollector, FeatureEngineer
 from app.decision_engine import DecisionEngine
-from app.ml_training import ModelTrainer
 from app.enhanced_strategy import EnhancedLottoGridStrategy
+from app.feature_pipeline import FeatureCollector, FeatureEngineer
 from app.market_indicators import MarketIndicatorEngine
+from app.ml_training import ModelTrainer
+from app.models import Base, DecisionHistory, MarketData, MarketFeatures, get_session_maker
 
 
 class TestMarketDataProcessingPerformance:
@@ -166,8 +168,9 @@ class TestMarketDataProcessingPerformance:
     @pytest.mark.performance
     def test_memory_usage_during_bulk_operations(self, feature_collector):
         """Test memory usage during bulk data operations"""
-        import psutil
         import os
+
+        import psutil
 
         process = psutil.Process(os.getpid())
         initial_memory = process.memory_info().rss / 1024 / 1024  # MB
@@ -309,8 +312,9 @@ class TestFeatureEngineeringPerformance:
     @pytest.mark.performance
     def test_feature_engineering_memory_efficiency(self, feature_engineer):
         """Test memory efficiency of feature engineering with large windows"""
-        import psutil
         import os
+
+        import psutil
 
         process = psutil.Process(os.getpid())
         initial_memory = process.memory_info().rss / 1024 / 1024  # MB
@@ -470,6 +474,7 @@ class TestDecisionEnginePerformance:
     def test_concurrent_decision_generation(self, decision_engine):
         """Test concurrent decision generation performance"""
         import time
+
         from app.market_indicators import MarketFeatures
 
         mock_features = MarketFeatures(
@@ -864,8 +869,9 @@ class TestSystemResourceUsage:
     @pytest.mark.performance
     def test_cpu_usage_under_load(self):
         """Test CPU usage during intensive operations"""
-        import psutil
         import os
+
+        import psutil
 
         process = psutil.Process(os.getpid())
 
@@ -907,9 +913,10 @@ class TestSystemResourceUsage:
     @pytest.mark.performance
     def test_memory_leak_detection(self):
         """Test for memory leaks during repeated operations"""
-        import psutil
-        import os
         import gc
+        import os
+
+        import psutil
 
         process = psutil.Process(os.getpid())
         initial_memory = process.memory_info().rss / 1024 / 1024  # MB

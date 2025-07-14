@@ -1,21 +1,23 @@
 """
 Comprehensive tests for enhanced ML-powered trading strategy integration
 """
-import pytest
+
 import asyncio
-import numpy as np
 from datetime import datetime, timedelta
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
+
+import numpy as np
+import pytest
 from sqlalchemy import create_engine
 
+from app.decision_engine import DecisionEngine, ExitSignal, TradingSignal
 from app.enhanced_strategy import EnhancedLottoGridStrategy
-from app.strategy import LottoGridStrategy
-from app.ib_client import IBClient
-from app.risk_manager import RiskManager
-from app.decision_engine import TradingSignal, ExitSignal, DecisionEngine
 from app.feature_pipeline import FeatureCollector
+from app.ib_client import IBClient
 from app.ml_training import ModelTrainer
-from app.models import Base, Trade, DecisionHistory
+from app.models import Base, DecisionHistory, Trade
+from app.risk_manager import RiskManager
+from app.strategy import LottoGridStrategy
 
 
 class TestEnhancedLottoGridStrategy:
@@ -720,9 +722,11 @@ class TestEnhancedStrategyIntegration:
     async def test_complete_enhanced_workflow(self, integration_strategy):
         """Test complete enhanced trading workflow"""
         # Initialize strategy
-        with patch.object(integration_strategy, "_initialize_decision_engine"), patch.object(
-            integration_strategy.model_scheduler, "check_and_retrain_models"
-        ), patch.object(integration_strategy, "_collect_market_features"):
+        with (
+            patch.object(integration_strategy, "_initialize_decision_engine"),
+            patch.object(integration_strategy.model_scheduler, "check_and_retrain_models"),
+            patch.object(integration_strategy, "_collect_market_features"),
+        ):
             init_result = await integration_strategy.initialize_daily_session()
             assert init_result is True
 
@@ -755,9 +759,14 @@ class TestEnhancedStrategyIntegration:
         integration_strategy.fallback_to_basic = True
 
         # Test ML initialization error
-        with patch.object(
-            integration_strategy, "_initialize_decision_engine", side_effect=Exception("ML error")
-        ), patch.object(LottoGridStrategy, "initialize_daily_session", return_value=True):
+        with (
+            patch.object(
+                integration_strategy,
+                "_initialize_decision_engine",
+                side_effect=Exception("ML error"),
+            ),
+            patch.object(LottoGridStrategy, "initialize_daily_session", return_value=True),
+        ):
             result = await integration_strategy.initialize_daily_session()
             assert result is True
             assert integration_strategy.ml_enabled is False

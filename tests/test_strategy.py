@@ -1,14 +1,16 @@
 """
 Tests for the trading strategy logic
 """
-import pytest
-from datetime import datetime, timedelta
-from unittest.mock import Mock, AsyncMock
-import asyncio
 
-from app.strategy import LottoGridStrategy
+import asyncio
+from datetime import datetime, timedelta
+from unittest.mock import AsyncMock, Mock
+
+import pytest
+
 from app.ib_client import IBClient
 from app.risk_manager import RiskManager
+from app.strategy import LottoGridStrategy
 
 
 class TestLottoGridStrategy:

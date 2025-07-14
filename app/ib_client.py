@@ -1,13 +1,15 @@
 """
 Interactive Brokers API client using ib_insync
 """
+
 import asyncio
 import logging
-from datetime import datetime, date, time
-from typing import Optional, List, Dict, Tuple
-from ib_insync import IB, Contract, Future, Option, Order, Trade
-from ib_insync.objects import PortfolioItem, AccountValue
+from datetime import date, datetime, time
+from typing import Dict, List, Optional, Tuple
+
 import pytz
+from ib_insync import IB, Contract, Future, Option, Order, Trade
+from ib_insync.objects import AccountValue, PortfolioItem
 
 from app.config import config
 from app.models import Trade as TradeModel

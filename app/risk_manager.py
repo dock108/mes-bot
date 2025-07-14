@@ -1,13 +1,15 @@
 """
 Risk management system for the MES 0DTE Lotto-Grid Options Bot
 """
+
 import logging
 from datetime import datetime, timedelta
-from typing import List, Dict, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
+
 from sqlalchemy.orm import Session
 
 from app.config import config
-from app.models import Trade, DailySummary, get_session_maker
+from app.models import DailySummary, Trade, get_session_maker
 
 logger = logging.getLogger(__name__)
 

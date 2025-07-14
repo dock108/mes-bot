@@ -1,11 +1,13 @@
 """
 UAT tests for backtesting functionality and workflow
 """
-import pytest
+
 from datetime import datetime
+
+import pytest
 from playwright.sync_api import Page, expect
 
-from tests.uat.helpers.dashboard_pages import DashboardPage, BacktestPage
+from tests.uat.helpers.dashboard_pages import BacktestPage, DashboardPage
 
 
 class TestBacktestingWorkflow:
@@ -263,7 +265,7 @@ class TestBacktestingWorkflow:
         assert end_value != "", "End date should have default value"
 
         # Test 3: Check that default dates are in the past
-        from datetime import datetime, date
+        from datetime import date, datetime
 
         today = date.today()
 

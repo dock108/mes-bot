@@ -1,6 +1,7 @@
 """
 UAT tests for trading controls and mode management
 """
+
 import pytest
 from playwright.sync_api import Page, expect
 

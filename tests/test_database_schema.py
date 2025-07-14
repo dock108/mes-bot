@@ -2,26 +2,28 @@
 Comprehensive tests for database schema including all ML models,
 relationships, constraints, and CRUD operations
 """
-import pytest
-import numpy as np
-from datetime import datetime, date, timedelta
+
+from datetime import date, datetime, timedelta
 from decimal import Decimal
+
+import numpy as np
+import pytest
 from sqlalchemy import create_engine, inspect, text
-from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from sqlalchemy.orm import sessionmaker
 
 from app.models import (
-    Base,
-    Trade,
-    DailySummary,
     BacktestResult,
-    SystemLog,
+    Base,
+    DailySummary,
+    DecisionHistory,
     MarketData,
     MarketFeatures,
-    DecisionHistory,
     MLModelMetadata,
     MLPrediction,
     PerformanceMetrics,
+    SystemLog,
+    Trade,
     create_database,
     get_session_maker,
 )

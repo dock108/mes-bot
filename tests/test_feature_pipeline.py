@@ -2,25 +2,29 @@
 Comprehensive tests for feature pipeline components including data collection,
 feature engineering, and data quality monitoring
 """
-import pytest
+
 import asyncio
-import pandas as pd
+from datetime import date, datetime, timedelta
+from unittest.mock import AsyncMock, Mock, patch
+
 import numpy as np
-from datetime import datetime, date, timedelta
-from unittest.mock import Mock, patch, AsyncMock
+import pandas as pd
+import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.feature_pipeline import FeatureCollector, FeatureEngineer, DataQualityMonitor
+from app.feature_pipeline import DataQualityMonitor, FeatureCollector, FeatureEngineer
+from app.market_indicators import MarketFeatures
 from app.models import (
     Base,
-    MarketData,
-    MarketFeatures as MarketFeaturesModel,
     DecisionHistory,
+    MarketData,
+)
+from app.models import MarketFeatures as MarketFeaturesModel
+from app.models import (
     Trade,
     get_session_maker,
 )
-from app.market_indicators import MarketFeatures
 
 
 class TestFeatureCollector:

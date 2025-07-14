@@ -1,15 +1,17 @@
 """
 Tests for the risk management system
 """
-import pytest
+
 from datetime import datetime, timedelta
 from unittest.mock import Mock, patch
+
+import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.risk_manager import RiskManager
-from app.models import Base, Trade, DailySummary
 from app.config import config
+from app.models import Base, DailySummary, Trade
+from app.risk_manager import RiskManager
 
 
 class TestRiskManager:

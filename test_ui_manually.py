@@ -3,9 +3,9 @@
 Manual test script to verify UI changes
 Run this to manually test the UI features
 """
-import time
 import subprocess
 import sys
+import time
 
 
 def test_ui_features():

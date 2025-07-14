@@ -1,9 +1,11 @@
 """
 Page Object Model for Streamlit Dashboard UAT Testing
 """
-from playwright.sync_api import Page, Locator
-from typing import Dict, List, Optional
+
 import time
+from typing import Dict, List, Optional
+
+from playwright.sync_api import Locator, Page
 
 
 class BasePage:

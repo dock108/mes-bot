@@ -1,26 +1,30 @@
 """
 Feature Engineering Pipeline for ML Model Training
 """
+
 import asyncio
 import logging
+from datetime import date, datetime, timedelta
+from typing import Dict, List, Optional, Tuple
+
 import numpy as np
 import pandas as pd
-from datetime import datetime, date, timedelta
-from typing import Dict, List, Optional, Tuple
-from sqlalchemy.orm import Session
 from sqlalchemy import and_, desc, func
+from sqlalchemy.orm import Session
 
+from app.config import config
+from app.market_indicators import MarketFeatures, MarketIndicatorEngine
 from app.models import (
-    MarketData,
-    MarketFeatures as MarketFeaturesModel,
     DecisionHistory,
+    MarketData,
+)
+from app.models import MarketFeatures as MarketFeaturesModel
+from app.models import (
     MLPrediction,
     PerformanceMetrics,
-    get_session_maker,
     Trade,
+    get_session_maker,
 )
-from app.market_indicators import MarketIndicatorEngine, MarketFeatures
-from app.config import config
 
 logger = logging.getLogger(__name__)
 

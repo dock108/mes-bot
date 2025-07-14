@@ -1,21 +1,23 @@
 """
 Comprehensive tests for ML decision engine and trading signal generation
 """
-import pytest
+
 import asyncio
-import numpy as np
-from datetime import datetime, timedelta
-from unittest.mock import Mock, AsyncMock, patch
 from dataclasses import asdict
+from datetime import datetime, timedelta
+from unittest.mock import AsyncMock, Mock, patch
+
+import numpy as np
+import pytest
 
 from app.decision_engine import (
-    DecisionEngine,
-    TradingSignal,
-    ExitSignal,
-    DecisionConfidence,
-    VolatilityBasedModel,
-    MLEnsembleModel,
     BaseDecisionModel,
+    DecisionConfidence,
+    DecisionEngine,
+    ExitSignal,
+    MLEnsembleModel,
+    TradingSignal,
+    VolatilityBasedModel,
 )
 from app.market_indicators import MarketFeatures, MarketIndicatorEngine
 
@@ -833,12 +835,16 @@ class TestDecisionEngineIntegration:
             trade_info = {
                 "entry_time": timestamps[-1],
                 "entry_price": base_price,
-                "call_strike": entry_signal.optimal_strikes[0]
-                if entry_signal.optimal_strikes
-                else base_price + 25,
-                "put_strike": entry_signal.optimal_strikes[1]
-                if entry_signal.optimal_strikes
-                else base_price - 25,
+                "call_strike": (
+                    entry_signal.optimal_strikes[0]
+                    if entry_signal.optimal_strikes
+                    else base_price + 25
+                ),
+                "put_strike": (
+                    entry_signal.optimal_strikes[1]
+                    if entry_signal.optimal_strikes
+                    else base_price - 25
+                ),
                 "current_pnl": 25.0,
                 "time_in_trade": 0.5,
             }

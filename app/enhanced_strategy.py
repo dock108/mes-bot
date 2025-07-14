@@ -1,21 +1,23 @@
 """
 Enhanced ML-Powered Trading Strategy for MES 0DTE Lotto-Grid Options Bot
 """
+
 import asyncio
 import logging
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
+
 import numpy as np
 from sqlalchemy.orm import Session
 
 from app.config import config
-from app.models import Trade, DecisionHistory, MarketData, get_session_maker
+from app.decision_engine import DecisionEngine, ExitSignal, TradingSignal
+from app.feature_pipeline import FeatureCollector
 from app.ib_client import IBClient
+from app.ml_training import ModelScheduler, ModelTrainer
+from app.models import DecisionHistory, MarketData, Trade, get_session_maker
 from app.risk_manager import RiskManager
 from app.strategy import LottoGridStrategy  # Import base strategy
-from app.decision_engine import DecisionEngine, TradingSignal, ExitSignal
-from app.feature_pipeline import FeatureCollector
-from app.ml_training import ModelTrainer, ModelScheduler
 
 logger = logging.getLogger(__name__)
 
@@ -409,12 +411,12 @@ class EnhancedLottoGridStrategy(LottoGridStrategy):
                 implied_move=self.implied_move,
                 reasoning=ml_signal.reasoning,
                 model_predictions=ml_signal.model_predictions,
-                suggested_call_strike=ml_signal.optimal_strikes[0]
-                if ml_signal.optimal_strikes
-                else None,
-                suggested_put_strike=ml_signal.optimal_strikes[1]
-                if ml_signal.optimal_strikes
-                else None,
+                suggested_call_strike=(
+                    ml_signal.optimal_strikes[0] if ml_signal.optimal_strikes else None
+                ),
+                suggested_put_strike=(
+                    ml_signal.optimal_strikes[1] if ml_signal.optimal_strikes else None
+                ),
                 position_size_multiplier=ml_signal.position_size_multiplier,
                 profit_target_multiplier=ml_signal.profit_target_multiplier,
             )

@@ -1,6 +1,7 @@
 """
 UAT tests for manual trading mode and opportunity scanner
 """
+
 import pytest
 from playwright.sync_api import Page, expect
 

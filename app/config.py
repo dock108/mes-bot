@@ -1,11 +1,13 @@
 """
 Configuration management for the MES 0DTE Lotto-Grid Options Bot
 """
+
 import os
 from dataclasses import dataclass
 from typing import Optional
-from dotenv import load_dotenv
+
 import pytz
+from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()

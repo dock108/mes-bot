@@ -1,19 +1,21 @@
 """
 Main trading bot engine for MES 0DTE Lotto-Grid Options Bot
 """
+
 import asyncio
 import logging
 import signal
 import sys
 from datetime import datetime, time, timedelta
-from typing import Optional, Dict
+from typing import Dict, Optional
+
 import pytz
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
 from app.config import config
-from app.models import create_database, SystemLog, get_session_maker
 from app.ib_client import IBClient
+from app.models import SystemLog, create_database, get_session_maker
 from app.risk_manager import RiskManager
 from app.strategy import LottoGridStrategy
 

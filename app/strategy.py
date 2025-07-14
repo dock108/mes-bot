@@ -1,16 +1,18 @@
 """
 Core trading strategy logic for MES 0DTE Lotto-Grid Options Bot
 """
+
 import asyncio
 import logging
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
+
 import numpy as np
 from sqlalchemy.orm import Session
 
 from app.config import config
-from app.models import Trade, get_session_maker
 from app.ib_client import IBClient
+from app.models import Trade, get_session_maker
 from app.risk_manager import RiskManager
 
 logger = logging.getLogger(__name__)
@@ -444,9 +446,9 @@ class LottoGridStrategy:
             "implied_move": self.implied_move,
             "daily_high": self.daily_high,
             "daily_low": self.daily_low,
-            "daily_range": (self.daily_high - self.daily_low)
-            if (self.daily_high and self.daily_low)
-            else 0,
+            "daily_range": (
+                (self.daily_high - self.daily_low) if (self.daily_high and self.daily_low) else 0
+            ),
             "realized_range_60m": self.calculate_realized_range(60),
             "last_trade_time": self.last_trade_time,
             "session_start": self.session_start_time,

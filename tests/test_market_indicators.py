@@ -1,20 +1,22 @@
 """
 Comprehensive tests for market indicators and technical analysis components
 """
-import pytest
-import numpy as np
-import pandas as pd
+
+from collections import deque
 from datetime import datetime, timedelta
 from unittest.mock import Mock, patch
-from collections import deque
+
+import numpy as np
+import pandas as pd
+import pytest
 
 from app.market_indicators import (
-    TechnicalIndicators,
-    VolatilityAnalyzer,
+    MarketFeatures,
+    MarketIndicatorEngine,
     MarketMicrostructure,
     MarketRegimeDetector,
-    MarketIndicatorEngine,
-    MarketFeatures,
+    TechnicalIndicators,
+    VolatilityAnalyzer,
 )
 
 

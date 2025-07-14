@@ -1,19 +1,21 @@
 """
 Streamlit dashboard for MES 0DTE Lotto-Grid Options Bot
 """
+
 import asyncio
 import logging
-import streamlit as st
-import pandas as pd
-import plotly.graph_objects as go
-import plotly.express as px
-from datetime import datetime, date, timedelta
-from typing import Dict, List, Optional
 import time
+from datetime import date, datetime, timedelta
+from typing import Dict, List, Optional
 
-from app.config import config
-from app.models import Trade, DailySummary, BacktestResult, get_session_maker
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
+import streamlit as st
+
 from app.backtester import LottoGridBacktester
+from app.config import config
+from app.models import BacktestResult, DailySummary, Trade, get_session_maker
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -146,9 +148,11 @@ class Dashboard:
                         "Strikes": f"{trade.call_strike:.0f}C/{trade.put_strike:.0f}P",
                         "Premium": f"${trade.total_premium:.2f}",
                         "P&L": f"${trade.realized_pnl:.2f}",
-                        "Return %": f"{(trade.realized_pnl / trade.total_premium * 100):.1f}%"
-                        if trade.total_premium > 0
-                        else "0%",
+                        "Return %": (
+                            f"{(trade.realized_pnl / trade.total_premium * 100):.1f}%"
+                            if trade.total_premium > 0
+                            else "0%"
+                        ),
                         "Status": trade.status,
                     }
                 )
@@ -184,9 +188,11 @@ class Dashboard:
                         "Daily P&L": summary.net_pnl,
                         "Cumulative Equity": cumulative_pnl,
                         "Trades": summary.total_trades,
-                        "Win Rate": summary.winning_trades / summary.total_trades
-                        if summary.total_trades > 0
-                        else 0,
+                        "Win Rate": (
+                            summary.winning_trades / summary.total_trades
+                            if summary.total_trades > 0
+                            else 0
+                        ),
                     }
                 )
 
@@ -337,9 +343,11 @@ class Dashboard:
             st.metric(
                 "Losers",
                 daily_summary["losing_trades"],
-                delta=f"-{daily_summary['losing_trades']}"
-                if daily_summary["losing_trades"] > 0
-                else None,
+                delta=(
+                    f"-{daily_summary['losing_trades']}"
+                    if daily_summary["losing_trades"] > 0
+                    else None
+                ),
             )
 
         st.divider()

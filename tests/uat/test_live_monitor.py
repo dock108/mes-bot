@@ -1,6 +1,7 @@
 """
 UAT tests for live monitoring functionality
 """
+
 import pytest
 from playwright.sync_api import Page, expect
 

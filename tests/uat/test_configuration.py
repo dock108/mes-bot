@@ -1,10 +1,11 @@
 """
 UAT tests for configuration management functionality
 """
+
 import pytest
 from playwright.sync_api import Page, expect
 
-from tests.uat.helpers.dashboard_pages import DashboardPage, ConfigurationPage
+from tests.uat.helpers.dashboard_pages import ConfigurationPage, DashboardPage
 
 
 class TestConfigurationManagement:

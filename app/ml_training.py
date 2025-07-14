@@ -1,42 +1,43 @@
 """
 Machine Learning Model Training Framework
 """
+
 import asyncio
+import hashlib
+import json
 import logging
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from datetime import date, datetime, timedelta
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
+
+import joblib
 import numpy as np
 import pandas as pd
-import joblib
-import json
-import hashlib
-from datetime import datetime, date, timedelta
-from typing import Dict, List, Optional, Tuple, Any
-from dataclasses import dataclass
-from pathlib import Path
-from abc import ABC, abstractmethod
-
 from sklearn.ensemble import (
+    GradientBoostingClassifier,
     RandomForestClassifier,
     RandomForestRegressor,
-    GradientBoostingClassifier,
 )
-from sklearn.linear_model import LogisticRegression, LinearRegression
-from sklearn.svm import SVC, SVR
-from sklearn.neural_network import MLPClassifier, MLPRegressor
-from sklearn.model_selection import train_test_split, cross_val_score, GridSearchCV
-from sklearn.preprocessing import StandardScaler, RobustScaler
+from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.metrics import (
     accuracy_score,
-    precision_score,
-    recall_score,
     f1_score,
     mean_squared_error,
+    precision_score,
     r2_score,
+    recall_score,
 )
+from sklearn.model_selection import GridSearchCV, cross_val_score, train_test_split
+from sklearn.neural_network import MLPClassifier, MLPRegressor
 from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import RobustScaler, StandardScaler
+from sklearn.svm import SVC, SVR
 
-from app.models import MLModelMetadata, get_session_maker
-from app.feature_pipeline import FeatureEngineer, DataQualityMonitor
 from app.config import config
+from app.feature_pipeline import DataQualityMonitor, FeatureEngineer
+from app.models import MLModelMetadata, get_session_maker
 
 logger = logging.getLogger(__name__)
 

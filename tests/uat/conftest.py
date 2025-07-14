@@ -1,19 +1,21 @@
 """
 Pytest configuration and fixtures for UAT testing with Playwright
 """
-import pytest
-import asyncio
-import tempfile
-import subprocess
-import time
-import threading
-from pathlib import Path
-from datetime import datetime, date, timedelta
-from typing import Generator
-import pandas as pd
 
-from app.models import create_database, Trade, DailySummary, get_session_maker
+import asyncio
+import subprocess
+import tempfile
+import threading
+import time
+from datetime import date, datetime, timedelta
+from pathlib import Path
+from typing import Generator
+
+import pandas as pd
+import pytest
+
 from app.config import config
+from app.models import DailySummary, Trade, create_database, get_session_maker
 from tests.uat.helpers.test_data import TestDataGenerator
 
 

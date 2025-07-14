@@ -2,29 +2,33 @@
 End-to-end ML pipeline tests that verify the complete workflow from
 data collection through model training, prediction, and decision making
 """
-import pytest
+
 import asyncio
+from datetime import date, datetime, timedelta
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
+
 import numpy as np
 import pandas as pd
-from datetime import datetime, date, timedelta
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
+import pytest
 from sqlalchemy import create_engine
 
+from app.decision_engine import DecisionEngine, TradingSignal
+from app.enhanced_strategy import EnhancedLottoGridStrategy
+from app.feature_pipeline import DataQualityMonitor, FeatureCollector, FeatureEngineer
+from app.market_indicators import MarketFeatures, MarketIndicatorEngine
+from app.ml_training import ModelScheduler, ModelTrainer
 from app.models import (
     Base,
-    MarketData,
-    MarketFeatures as MarketFeaturesModel,
     DecisionHistory,
+    MarketData,
+)
+from app.models import MarketFeatures as MarketFeaturesModel
+from app.models import (
     MLModelMetadata,
     MLPrediction,
     Trade,
     get_session_maker,
 )
-from app.feature_pipeline import FeatureCollector, FeatureEngineer, DataQualityMonitor
-from app.ml_training import ModelTrainer, ModelScheduler
-from app.decision_engine import DecisionEngine, TradingSignal
-from app.enhanced_strategy import EnhancedLottoGridStrategy
-from app.market_indicators import MarketFeatures, MarketIndicatorEngine
 
 
 class TestMLPipelineEndToEnd:

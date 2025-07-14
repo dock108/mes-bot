@@ -2,29 +2,31 @@
 Comprehensive tests for ML training framework including model training,
 hyperparameter optimization, and model lifecycle management
 """
-import pytest
+
 import asyncio
+import os
+import tempfile
+from datetime import date, datetime, timedelta
+from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
+
 import numpy as np
 import pandas as pd
-import tempfile
-import os
-from datetime import datetime, date, timedelta
-from unittest.mock import Mock, patch, MagicMock, AsyncMock
-from pathlib import Path
+import pytest
 from sqlalchemy import create_engine
 
+from app.feature_pipeline import FeatureEngineer
 from app.ml_training import (
     BaseMLModel,
     EntryPredictionModel,
     ExitPredictionModel,
-    StrikeOptimizationModel,
-    ModelTrainer,
-    ModelScheduler,
-    TrainingConfig,
     ModelPerformance,
+    ModelScheduler,
+    ModelTrainer,
+    StrikeOptimizationModel,
+    TrainingConfig,
 )
 from app.models import Base, MLModelMetadata, get_session_maker
-from app.feature_pipeline import FeatureEngineer
 
 
 class TestTrainingConfig:

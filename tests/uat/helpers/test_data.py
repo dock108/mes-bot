@@ -1,12 +1,14 @@
 """
 Test data generator for UAT testing
 """
+
 import random
-from datetime import datetime, date, timedelta
+from datetime import date, datetime, timedelta
 from typing import List
+
 from faker import Faker
 
-from app.models import Trade, DailySummary, BacktestResult, get_session_maker
+from app.models import BacktestResult, DailySummary, Trade, get_session_maker
 
 
 class TestDataGenerator:
