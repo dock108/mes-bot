@@ -8,14 +8,13 @@ version = "1.0.0"
 description = "MES 0DTE Lotto-Grid Options Trading Bot"
 readme = "README.md"
 requires-python = ">=3.11"
-license = {text = "MIT"}
+license = "MIT"
 authors = [
     {name = "Your Name", email = "your.email@example.com"},
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Financial and Insurance Industry",
-    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -37,6 +36,10 @@ dependencies = [
     "aiohttp>=3.8.0",
     "pydantic>=2.0.0",
 ]
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+exclude = ["tests*", "models*", "deploy*", "data*"]
 
 [project.optional-dependencies]
 dev = [
