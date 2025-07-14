@@ -754,7 +754,7 @@ class TestFeaturePipelineIntegration:
         engineer = FeatureEngineer(database_url)
         monitor = DataQualityMonitor(database_url)
         
-        return collector, engineer, monitor, database_url
+        return collector, engineer, monitor
     
     @pytest.mark.asyncio
     async def test_complete_pipeline_workflow(self):
