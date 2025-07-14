@@ -755,7 +755,8 @@ class Dashboard:
 
                     if not results["decision_traces"]:
                         st.info(
-                            "No trading decisions were evaluated during this backtest period. This may happen if the market was closed or data was insufficient."
+                            "No trading decisions were evaluated during this backtest period. "
+                            "This may happen if the market was closed or data was insufficient."
                         )
                     else:
                         traces = results["decision_traces"]
@@ -817,15 +818,18 @@ class Dashboard:
                                         # Color coding based on decision
                                         if trace.decision == "TRADED":
                                             st.success(
-                                                f"✅ **{trace.timestamp.strftime('%H:%M:%S')}** - TRADED at ${trace.price:.2f}"
+                                                f"✅ **{trace.timestamp.strftime('%H:%M:%S')}** - "
+                                                f"TRADED at ${trace.price:.2f}"
                                             )
                                         elif trace.near_miss_score > 0.7:
                                             st.warning(
-                                                f"⚠️ **{trace.timestamp.strftime('%H:%M:%S')}** - NEAR MISS (Score: {trace.near_miss_score:.2%}) at ${trace.price:.2f}"
+                                                f"⚠️ **{trace.timestamp.strftime('%H:%M:%S')}** - "
+                                                f"NEAR MISS (Score: {trace.near_miss_score:.2%}) at ${trace.price:.2f}"
                                             )
                                         else:
                                             st.info(
-                                                f"ℹ️ **{trace.timestamp.strftime('%H:%M:%S')}** - NO TRADE (Score: {trace.near_miss_score:.2%}) at ${trace.price:.2f}"
+                                                f"ℹ️ **{trace.timestamp.strftime('%H:%M:%S')}** - "
+                                                f"NO TRADE (Score: {trace.near_miss_score:.2%}) at ${trace.price:.2f}"
                                             )
 
                                         # Show reasons
@@ -846,28 +850,34 @@ class Dashboard:
                                                         f"**Implied Move:** ${conditions.get('implied_move', 0):.2f}"
                                                     )
                                                     st.write(
-                                                        f"**Current Price:** ${conditions.get('current_price', 0):.2f}"
+                                                        f"**Current Price:** "
+                                                        f"${conditions.get('current_price', 0):.2f}"
                                                     )
                                                 with cols[1]:
                                                     st.write(
-                                                        f"**Realized Range:** ${conditions.get('realized_range', 0):.2f}"
+                                                        f"**Realized Range:** "
+                                                        f"${conditions.get('realized_range', 0):.2f}"
                                                     )
                                                     st.write(
-                                                        f"**Volatility Ratio:** {conditions.get('volatility_ratio', 0):.1%}"
+                                                        f"**Volatility Ratio:** "
+                                                        f"{conditions.get('volatility_ratio', 0):.1%}"
                                                     )
                                                 with cols[2]:
                                                     st.write(
-                                                        f"**Minutes Since Trade:** {conditions.get('minutes_since_last_trade', 'N/A')}"
+                                                        f"**Minutes Since Trade:** "
+                                                        f"{conditions.get('minutes_since_last_trade', 'N/A')}"
                                                     )
                                                     st.write(
-                                                        f"**Vol Threshold:** {conditions.get('volatility_threshold', 0):.1%}"
+                                                        f"**Vol Threshold:** "
+                                                        f"{conditions.get('volatility_threshold', 0):.1%}"
                                                     )
 
                                             # Show potential trade if available
                                             if trace.potential_trade:
                                                 st.write("**Potential Trade:**")
                                                 st.write(
-                                                    f"• Strikes: {trace.potential_trade['call_strike']:.0f}C / {trace.potential_trade['put_strike']:.0f}P"
+                                                    f"• Strikes: {trace.potential_trade['call_strike']:.0f}C / "
+                                                    f"{trace.potential_trade['put_strike']:.0f}P"
                                                 )
                                                 st.write(
                                                     f"• Est. Premium: ${trace.potential_trade['estimated_premium']:.2f}"

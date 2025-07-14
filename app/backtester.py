@@ -265,7 +265,8 @@ class LottoGridBacktester:
             if time_diff < timedelta(minutes=config.trading.min_time_between_trades):
                 can_trade_time = False
                 reasons.append(
-                    f"Only {minutes_since_last:.1f} minutes since last trade (need {config.trading.min_time_between_trades})"
+                    f"Only {minutes_since_last:.1f} minutes since last trade "
+                    f"(need {config.trading.min_time_between_trades})"
                 )
             else:
                 passed_checks += 1
@@ -304,12 +305,14 @@ class LottoGridBacktester:
             volatility_check_passed = bool(realized_range < volatility_threshold)
             if not volatility_check_passed:
                 reasons.append(
-                    f"Realized volatility ({volatility_ratio:.1%}) > threshold ({config.trading.volatility_threshold:.1%})"
+                    f"Realized volatility ({volatility_ratio:.1%}) > "
+                    f"threshold ({config.trading.volatility_threshold:.1%})"
                 )
             else:
                 passed_checks += 1
                 reasons.append(
-                    f"Volatility condition met: {volatility_ratio:.1%} < {config.trading.volatility_threshold:.1%}"
+                    f"Volatility condition met: {volatility_ratio:.1%} < "
+                    f"{config.trading.volatility_threshold:.1%}"
                 )
 
         # Calculate near-miss score
@@ -576,7 +579,8 @@ class LottoGridBacktester:
 
                         if idx % 12 == 0:  # Log every hour
                             logger.debug(
-                                f"  Decision at {current_time}: should_trade={should_trade}, near_miss={decision_info['near_miss_score']:.2f}"
+                                f"  Decision at {current_time}: should_trade={should_trade}, "
+                                f"near_miss={decision_info['near_miss_score']:.2f}"
                             )
 
                         # Add position limit check to decision info
