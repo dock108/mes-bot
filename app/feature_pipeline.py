@@ -659,7 +659,7 @@ class DataQualityMonitor:
             ).all()
             
             if not features:
-                return {'completeness': 0.0, 'consistency': 0.0, 'freshness': 0.0}
+                return {'completeness': 0.0, 'consistency': 0.0, 'freshness': 0.0, 'total_records': 0}
             
             # Calculate quality metrics
             total_records = len(features)
@@ -706,7 +706,7 @@ class DataQualityMonitor:
             
         except Exception as e:
             logger.error(f"Error checking data quality: {e}")
-            return {'completeness': 0.0, 'consistency': 0.0, 'freshness': 0.0}
+            return {'completeness': 0.0, 'consistency': 0.0, 'freshness': 0.0, 'total_records': 0}
         finally:
             session.close()
     
