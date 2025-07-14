@@ -297,7 +297,7 @@ class LottoGridBacktester:
                 "realized_low": recent_data["Low"].min(),
             })
             
-            volatility_check_passed = realized_range < volatility_threshold
+            volatility_check_passed = bool(realized_range < volatility_threshold)
             if not volatility_check_passed:
                 reasons.append(f"Realized volatility ({volatility_ratio:.1%}) > threshold ({config.trading.volatility_threshold:.1%})")
             else:
@@ -308,7 +308,7 @@ class LottoGridBacktester:
         near_miss_score = passed_checks / total_checks
         
         # Determine if we should trade
-        should_trade = can_trade_time and has_sufficient_data and volatility_check_passed
+        should_trade = bool(can_trade_time and has_sufficient_data and volatility_check_passed)
         
         decision_info = {
             "can_trade": should_trade,

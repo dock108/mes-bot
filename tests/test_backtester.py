@@ -156,7 +156,7 @@ class TestLottoGridBacktester:
             return  # Skip if not enough data
 
         # Test with low volatility (should place trade)
-        should_trade = backtester.should_place_trade(
+        should_trade, decision_info = backtester.should_place_trade(
             sample_price_data,
             current_idx=min(20, len(sample_price_data) - 1),  # Safe index
             implied_move=50.0,  # High implied move
@@ -164,6 +164,10 @@ class TestLottoGridBacktester:
         )
 
         assert isinstance(should_trade, bool)
+        assert isinstance(decision_info, dict)
+        assert "can_trade" in decision_info
+        assert "reasons" in decision_info
+        assert "market_conditions" in decision_info
 
     def test_place_strangle(self, backtester):
         """Test strangle placement"""
