@@ -1,0 +1,269 @@
+name: Security Scanning
+
+on:
+  schedule:
+    # Run daily at 3 AM UTC
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - 'requirements*.txt'
+      - 'poetry.lock'
+      - 'Pipfile.lock'
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  # Dependency Scanning
+  dependency-scan:
+    name: Dependency Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install safety pip-audit cyclonedx-bom
+
+      - name: Generate SBOM (Software Bill of Materials)
+        run: |
+          cyclonedx-py -r requirements.txt -o sbom.json --format json
+          cyclonedx-py -r requirements.txt -o sbom.xml --format xml
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: |
+            sbom.json
+            sbom.xml
+
+      - name: Run Safety Check
+        run: |
+          safety check --json --save-json safety-report.json || true
+          safety check --bare || true
+
+      - name: Run pip-audit
+        run: |
+          pip-audit --desc --format json --output pip-audit-report.json || true
+          pip-audit --desc || true
+
+      - name: Check for known vulnerabilities
+        run: |
+          # Parse and check severity of vulnerabilities
+          python -c "
+          import json
+          with open('safety-report.json', 'r') as f:
+              report = json.load(f)
+          critical_vulns = [v for v in report.get('vulnerabilities', []) if v.get('severity', '').lower() in ['critical', 'high']]
+          if critical_vulns:
+              print(f'Found {len(critical_vulns)} critical/high vulnerabilities!')
+              for vuln in critical_vulns:
+                  print(f\"  - {vuln.get('package_name')}: {vuln.get('vulnerability_id')}\")
+              exit(1)
+          "
+
+  # Container Scanning (if using Docker)
+  container-scan:
+    name: Container Security Scan
+    runs-on: ubuntu-latest
+    if: ${{ hashFiles('Dockerfile') != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t lotto-grid-bot:scan .
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'lotto-grid-bot:scan'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy scan results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  # License Compliance
+  license-check:
+    name: License Compliance Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: 'pip'
+
+      - name: Install pip-licenses
+        run: |
+          python -m pip install --upgrade pip
+          pip install pip-licenses
+
+      - name: Install project dependencies
+        run: pip install -r requirements.txt
+
+      - name: Check licenses
+        run: |
+          # Generate license report
+          pip-licenses --format=json --output-file=licenses.json
+          pip-licenses --format=markdown --output-file=licenses.md
+          
+          # Check for problematic licenses
+          pip-licenses --fail-on="GPL;LGPL;AGPL;MPL" || echo "Warning: Found copyleft licenses"
+          
+          # Generate summary
+          echo "# License Summary" > license-summary.md
+          echo "" >> license-summary.md
+          pip-licenses --summary >> license-summary.md
+
+      - name: Upload license reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: license-reports
+          path: |
+            licenses.json
+            licenses.md
+            license-summary.md
+
+  # SAST with Semgrep
+  sast-scan:
+    name: SAST with Semgrep
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Semgrep
+        uses: returntocorp/semgrep-action@v1
+        with:
+          config: >-
+            p/security-audit
+            p/python
+            p/django
+            p/flask
+            p/jwt
+            p/command-injection
+            p/sql-injection
+
+  # Secrets Detection
+  secrets-scan:
+    name: Secrets Detection
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect secrets with Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run detect-secrets
+        run: |
+          pip install detect-secrets
+          detect-secrets scan --baseline .secrets.baseline
+          detect-secrets audit .secrets.baseline || true
+
+  # Security Scorecard
+  scorecard:
+    name: Security Scorecard
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      id-token: write
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Run analysis
+        uses: ossf/scorecard-action@v2
+        with:
+          results_file: results.sarif
+          results_format: sarif
+          publish_results: true
+
+      - name: Upload to code-scanning
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: results.sarif
+
+  # Create Security Report
+  security-report:
+    name: Generate Security Report
+    runs-on: ubuntu-latest
+    needs: [dependency-scan, license-check, sast-scan, secrets-scan]
+    if: always()
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Generate consolidated report
+        run: |
+          echo "# Security Scan Report" > security-report.md
+          echo "Date: $(date)" >> security-report.md
+          echo "" >> security-report.md
+          
+          echo "## Summary" >> security-report.md
+          echo "- Dependency Scan: ${{ needs.dependency-scan.result }}" >> security-report.md
+          echo "- License Check: ${{ needs.license-check.result }}" >> security-report.md
+          echo "- SAST Scan: ${{ needs.sast-scan.result }}" >> security-report.md
+          echo "- Secrets Scan: ${{ needs.secrets-scan.result }}" >> security-report.md
+          
+          # Add more detailed reports if available
+          if [ -f "sbom/sbom.json" ]; then
+            echo "" >> security-report.md
+            echo "## Software Bill of Materials" >> security-report.md
+            echo "SBOM generated and available in artifacts" >> security-report.md
+          fi
+
+      - name: Upload security report
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-report
+          path: security-report.md
+
+      - name: Create issue if critical vulnerabilities found
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = '🚨 Security Vulnerabilities Detected';
+            const body = `Security scans have detected vulnerabilities that require attention.
+            
+            Please check the [workflow run](${context.payload.repository.html_url}/actions/runs/${context.runId}) for details.
+            
+            **Scan Results:**
+            - Dependency Scan: ${{ needs.dependency-scan.result }}
+            - License Check: ${{ needs.license-check.result }}
+            - SAST Scan: ${{ needs.sast-scan.result }}
+            - Secrets Scan: ${{ needs.secrets-scan.result }}
+            `;
+            
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: title,
+              body: body,
+              labels: ['security', 'automated']
+            });

@@ -1,0 +1,38 @@
+[Unit]
+Description=MES 0DTE Lotto-Grid Options Bot
+Documentation=https://github.com/user/lotto-grid-bot
+Requires=docker.service
+After=docker.service
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/lotto-grid-bot
+ExecStartPre=-/usr/bin/docker-compose down
+ExecStart=/usr/bin/docker-compose up -d
+ExecStop=/usr/bin/docker-compose down
+ExecReload=/usr/bin/docker-compose restart
+TimeoutStartSec=0
+Restart=on-failure
+RestartSec=30
+User=lotto-grid
+Group=lotto-grid
+
+# Environment
+Environment=COMPOSE_PROJECT_NAME=lotto-grid-bot
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/lotto-grid-bot/data /opt/lotto-grid-bot/logs
+
+# Resource limits
+MemoryLimit=2G
+CPUQuota=50%
+
+[Install]
+WantedBy=multi-user.target
