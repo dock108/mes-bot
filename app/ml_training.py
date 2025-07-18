@@ -43,6 +43,15 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
+class ModelConfig:
+    """Configuration for ML model training"""
+
+    model_type: str  # 'entry' or 'exit'
+    algorithm: str  # 'gradient_boosting', 'random_forest', 'neural_network'
+    hyperparameters: Dict[str, Any]
+
+
+@dataclass
 class ModelPerformance:
     """Container for model performance metrics"""
 
