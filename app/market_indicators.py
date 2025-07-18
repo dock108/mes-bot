@@ -62,6 +62,7 @@ class MarketFeatures:
     vix_term_structure: float
     market_correlation: float
     volume_profile: float
+    market_regime: str  # e.g., "normal", "high_vol", "low_vol", "extreme"
 
     # Time-based features
     time_of_day: float
@@ -542,6 +543,7 @@ class MarketIndicatorEngine:
             vix_term_structure=0.0,  # Placeholder
             market_correlation=0.0,  # Placeholder
             volume_profile=volume_profile,
+            market_regime="normal",  # Default regime, could be determined by VIX level
             # Time-based features
             time_of_day=time_of_day,
             day_of_week=day_of_week,

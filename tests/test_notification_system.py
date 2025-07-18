@@ -159,12 +159,27 @@ class TestNotificationService:
     @pytest.mark.asyncio
     async def test_slack_notification(self, notification_service, test_notification):
         """Test Slack notification"""
-        with patch("aiohttp.ClientSession") as mock_session_class:
-            mock_session = AsyncMock()
-            mock_response = AsyncMock()
+        # Use patch.object to mock the entire aiohttp module
+        with patch("app.notification_service.aiohttp.ClientSession") as mock_session_class:
+            # Create a proper async context manager mock
+            mock_response = Mock()
             mock_response.status = 200
-            mock_session.post.return_value.__aenter__.return_value = mock_response
-            mock_session_class.return_value.__aenter__.return_value = mock_session
+
+            # Create async context manager for response
+            mock_response_context = AsyncMock()
+            mock_response_context.__aenter__ = AsyncMock(return_value=mock_response)
+            mock_response_context.__aexit__ = AsyncMock(return_value=False)
+
+            # Create session mock
+            mock_session = Mock()
+            mock_session.post = Mock(return_value=mock_response_context)
+
+            # Create async context manager for session
+            mock_session_context = AsyncMock()
+            mock_session_context.__aenter__ = AsyncMock(return_value=mock_session)
+            mock_session_context.__aexit__ = AsyncMock(return_value=False)
+
+            mock_session_class.return_value = mock_session_context
 
             result = await notification_service._send_slack_notification(test_notification)
 
@@ -173,12 +188,27 @@ class TestNotificationService:
     @pytest.mark.asyncio
     async def test_webhook_notification(self, notification_service, test_notification):
         """Test webhook notification"""
-        with patch("aiohttp.ClientSession") as mock_session_class:
-            mock_session = AsyncMock()
-            mock_response = AsyncMock()
+        # Use patch.object to mock the entire aiohttp module
+        with patch("app.notification_service.aiohttp.ClientSession") as mock_session_class:
+            # Create a proper async context manager mock
+            mock_response = Mock()
             mock_response.status = 200
-            mock_session.post.return_value.__aenter__.return_value = mock_response
-            mock_session_class.return_value.__aenter__.return_value = mock_session
+
+            # Create async context manager for response
+            mock_response_context = AsyncMock()
+            mock_response_context.__aenter__ = AsyncMock(return_value=mock_response)
+            mock_response_context.__aexit__ = AsyncMock(return_value=False)
+
+            # Create session mock
+            mock_session = Mock()
+            mock_session.post = Mock(return_value=mock_response_context)
+
+            # Create async context manager for session
+            mock_session_context = AsyncMock()
+            mock_session_context.__aenter__ = AsyncMock(return_value=mock_session)
+            mock_session_context.__aexit__ = AsyncMock(return_value=False)
+
+            mock_session_class.return_value = mock_session_context
 
             result = await notification_service._send_webhook_notification(test_notification)
 

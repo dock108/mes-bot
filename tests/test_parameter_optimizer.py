@@ -138,22 +138,24 @@ class TestParameterOptimizer:
 
     def test_calculate_objective_score(self, optimizer):
         """Test objective score calculation"""
-        # Mock backtest results
+        # Mock backtest results with realistic trading returns
         backtest_results = {
             "summary": {
-                "total_return": 1000.0,
+                "total_return": 15.0,  # 15% return - more realistic
                 "win_rate": 0.6,
                 "profit_factor": 1.5,
-                "max_drawdown": 500.0,
+                "max_drawdown": 8.0,  # 8% drawdown
                 "sharpe_ratio": 1.2,
             }
         }
 
         score = optimizer._calculate_objective_score(backtest_results)
 
-        # Score should be positive and reasonable
+        # Score should be positive and reasonable for realistic returns
+        # 15*0.3 + 0.6*0.2 + 1.5*0.2 + 1.2*0.15 + max(0,1000-8)/1000*0.15
+        # = 4.5 + 0.12 + 0.3 + 0.18 + 0.149 = ~5.25
         assert score > 0
-        assert score < 10  # Reasonable upper bound
+        assert score < 10  # Should be around 5.25 for realistic values
 
     def test_calculate_objective_score_empty_results(self, optimizer):
         """Test objective score with empty results"""
@@ -232,13 +234,13 @@ class TestParameterOptimizer:
     @pytest.mark.asyncio
     async def test_grid_search_optimization(self, optimizer):
         """Test grid search optimization"""
-        # Mock backtest results
+        # Mock backtest results with realistic values
         mock_result = {
             "summary": {
-                "total_return": 600.0,
+                "total_return": 12.0,  # 12% return
                 "win_rate": 0.58,
                 "profit_factor": 1.4,
-                "max_drawdown": 400.0,
+                "max_drawdown": 6.0,  # 6% drawdown
                 "sharpe_ratio": 0.9,
             }
         }
@@ -249,7 +251,11 @@ class TestParameterOptimizer:
         parameter_ranges = {
             "param1": ParameterRange(name="param1", min_value=1.0, max_value=2.0, step=0.5),
             "param2": ParameterRange(
-                name="param2", discrete_values=[10, 20], parameter_type="discrete"
+                name="param2",
+                min_value=10,
+                max_value=20,
+                discrete_values=[10, 20],
+                parameter_type="discrete",
             ),
         }
 
