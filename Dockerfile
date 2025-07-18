@@ -54,7 +54,7 @@ FROM base AS development
 # Switch back to root for development tools
 USER root
 
-# Install development dependencies  
+# Install development dependencies
 RUN poetry install --no-root --with dev && rm -rf $POETRY_CACHE_DIR
 
 # Install additional development tools

@@ -122,7 +122,7 @@ def dashboard_with_data(page_with_server, uat_database):
         # If sidebar doesn't appear, try waiting for main content
         try:
             page.wait_for_selector('div[data-stale="false"]', timeout=20000)
-        except:
+        except Exception:
             # Final fallback - just wait for any Streamlit app container
             page.wait_for_selector(".main", timeout=15000)
 

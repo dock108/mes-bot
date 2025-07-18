@@ -1,6 +1,7 @@
 [run]
 source = app
-omit = 
+data_file = .coverage/.coverage
+omit =
     # Integration and UI files
     app/bot.py
     app/ui.py
@@ -20,19 +21,19 @@ omit =
 exclude_lines =
     # Have to re-enable the standard pragma
     pragma: no cover
-    
+
     # Don't complain about missing debug-only code:
     def __repr__
     if self\.debug
-    
+
     # Don't complain if tests don't hit defensive assertion code:
     raise AssertionError
     raise NotImplementedError
-    
+
     # Don't complain if non-runnable code isn't run:
     if 0:
     if __name__ == .__main__.:
-    
+
     # Don't complain about abstract methods
     @abstract
 
@@ -41,7 +42,7 @@ skip_empty = True
 show_missing = True
 
 [html]
-directory = htmlcov
+directory = .coverage/htmlcov
 
 [xml]
-output = coverage.xml
+output = .coverage/coverage.xml

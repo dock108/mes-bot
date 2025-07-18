@@ -143,6 +143,7 @@ pytest tests/uat/ -m "ui"
 ## Screenshots and Debugging
 
 Screenshots are automatically taken:
+
 - On test failures
 - At key verification points
 - During error conditions
@@ -178,6 +179,7 @@ Screenshots are saved to `test-results/screenshots/` with descriptive names.
 ### pytest-uat.ini
 
 UAT-specific pytest configuration:
+
 - Browser settings (headless, slowmo)
 - Screenshot and video capture
 - Timeout configurations
@@ -186,6 +188,7 @@ UAT-specific pytest configuration:
 ### Test Database
 
 Each test run uses an isolated SQLite database with:
+
 - Fresh test data generation
 - Cleanup after test completion
 - No interference with production data
@@ -212,6 +215,7 @@ Each test run uses an isolated SQLite database with:
 ### Browser Compatibility
 
 Tests are validated across:
+
 - Chromium (primary)
 - Firefox
 - Different viewport sizes
@@ -222,6 +226,7 @@ Tests are validated across:
 ### Test Results
 
 UAT test results include:
+
 - Pass/fail status for each test suite
 - Execution time metrics
 - Screenshot evidence

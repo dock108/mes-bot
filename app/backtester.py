@@ -16,6 +16,7 @@ from scipy.stats import norm
 from sqlalchemy.orm import Session
 
 from app.config import config
+from app.data_providers.vix_provider import VIXProvider
 from app.models import BacktestResult, get_session_maker
 
 logger = logging.getLogger(__name__)
@@ -99,28 +100,17 @@ class LottoGridBacktester:
     def __init__(self, database_url: str):
         self.session_maker = get_session_maker(database_url)
         self.bs_calculator = BlackScholesCalculator()
+        self.vix_provider = None  # Initialize when needed
 
     def fetch_historical_data(
         self, symbol: str, start_date: date, end_date: date, interval: str = "5m"
     ) -> pd.DataFrame:
-        """Fetch historical price data from Yahoo Finance with fallbacks"""
-        # Try multiple data sources in order of preference
-        ticker_options = [
-            ("SPY", "SPY"),  # Most reliable: SPY ETF
-            ("ES=F", "ES=F"),  # E-mini S&P 500 futures
-            ("^GSPC", "^GSPC"),  # S&P 500 index (daily only)
-        ]
-
-        # For intraday data, skip index
-        if interval in ["1m", "5m", "15m", "30m", "60m"]:
-            ticker_options = ticker_options[:2]
-
-        last_error = None
-
-        for desc, yahoo_symbol in ticker_options:
+        """Fetch historical price data from Yahoo Finance"""
+        # Try MES=F first, then fall back to ES=F, then SPY if not available
+        for ticker_symbol in ["MES=F", "ES=F", "SPY"]:
             try:
-                logger.info(f"Attempting to fetch data using {desc} ({yahoo_symbol})")
-                ticker = yf.Ticker(yahoo_symbol)
+                logger.info(f"Fetching futures data ({ticker_symbol}) from Yahoo Finance")
+                ticker = yf.Ticker(ticker_symbol)
 
                 # For intraday data, limit to last 60 days
                 if interval in ["1m", "5m", "15m", "30m", "60m"]:
@@ -143,25 +133,28 @@ class LottoGridBacktester:
                     # Clean and prepare data
                     data = data.dropna()
                     data.index = pd.to_datetime(data.index)
-                    logger.info(f"Successfully fetched {len(data)} records using {desc}")
+                    logger.info(f"Successfully fetched {len(data)} records using {ticker_symbol}")
                     return data
+                else:
+                    logger.warning(f"No data returned for {ticker_symbol}")
 
             except Exception as e:
-                last_error = e
-                logger.warning(f"Failed to fetch data using {desc}: {str(e)}")
+                logger.warning(f"Failed to fetch data with {ticker_symbol}: {str(e)}")
                 continue
 
-        # If all sources fail, raise the last error
-        if last_error:
-            raise ValueError(f"Unable to fetch data from any source. Last error: {str(last_error)}")
-        else:
-            raise ValueError(
-                f"No data found for {symbol} between {start_date} and {end_date}. "
-                f"Note: Yahoo Finance only provides intraday data for the last 60 days."
-            )
+        # If we get here, all tickers failed
+        raise ValueError(
+            f"Unable to fetch data from MES=F, ES=F, or SPY. "
+            f"Note: Yahoo Finance only provides intraday data for the last 60 days."
+        )
 
-    def calculate_implied_volatility(self, price_data: pd.DataFrame, window: int = 20) -> float:
-        """Calculate implied volatility from historical price movements"""
+    def calculate_implied_volatility(
+        self,
+        price_data: pd.DataFrame,
+        window: int = 20,
+        trading_date: Optional[date] = None,
+    ) -> float:
+        """Calculate implied volatility from historical price movements, with VIX adjustment"""
         try:
             # Use close prices
             closes = price_data["Close"]
@@ -179,10 +172,30 @@ class LottoGridBacktester:
             # Annualize based on interval
             # For 5-minute data: 252 trading days * 78 intervals per day (6.5 hours * 12)
             trading_periods_per_year = 252 * 78  # Approximate for 5m data
-            annualized_vol = volatility * np.sqrt(trading_periods_per_year)
+            realized_vol = volatility * np.sqrt(trading_periods_per_year)
+
+            # Try to get VIX data for adjustment
+            if trading_date and self.vix_provider:
+                try:
+                    vix_value = self.vix_provider.get_vix_value(trading_date)
+                    vix_vol = vix_value / 100.0  # VIX is in percentage points
+
+                    # Blend realized vol with VIX-implied vol (30% VIX, 70% realized)
+                    # This helps account for forward-looking volatility expectations
+                    blended_vol = 0.7 * realized_vol + 0.3 * vix_vol
+
+                    logger.debug(
+                        f"Volatility blend: Realized={realized_vol:.2%}, "
+                        f"VIX={vix_vol:.2%}, Blended={blended_vol:.2%}"
+                    )
+                    return max(0.05, min(2.0, blended_vol))  # 5% to 200%
+
+                except Exception as e:
+                    logger.debug(f"Could not get VIX data for {trading_date}: {e}")
+                    # Fall back to realized vol only
 
             # Ensure reasonable bounds
-            return max(0.05, min(2.0, annualized_vol))  # 5% to 200%
+            return max(0.05, min(2.0, realized_vol))  # 5% to 200%
 
         except Exception as e:
             logger.warning(f"Error calculating implied volatility: {e}")
@@ -466,8 +479,19 @@ class LottoGridBacktester:
         if end_date > date.today():
             raise ValueError(f"End date {end_date} cannot be in the future")
 
-        if start_date >= end_date:
-            raise ValueError(f"Start date {start_date} must be before end date {end_date}")
+        if start_date > end_date:
+            raise ValueError(
+                f"Start date {start_date} must be before or equal to end date {end_date}"
+            )
+
+        # Initialize VIX provider if available
+        try:
+            self.vix_provider = VIXProvider()
+            logger.info("VIX data provider initialized successfully")
+        except Exception as e:
+            logger.warning(f"Could not initialize VIX provider: {e}")
+            logger.warning("Backtesting will continue without VIX data")
+            self.vix_provider = None
 
         try:
             # Fetch historical data
@@ -501,8 +525,8 @@ class LottoGridBacktester:
 
                 logger.info(f"  Market hours data points: {len(day_data)}")
 
-                # Calculate daily implied volatility
-                volatility = self.calculate_implied_volatility(day_data)
+                # Calculate daily implied volatility (with VIX adjustment if available)
+                volatility = self.calculate_implied_volatility(day_data, trading_date=trading_date)
 
                 # Initialize daily session (at 9:35)
                 session_start_idx = None

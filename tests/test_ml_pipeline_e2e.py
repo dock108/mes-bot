@@ -17,18 +17,9 @@ from app.enhanced_strategy import EnhancedLottoGridStrategy
 from app.feature_pipeline import DataQualityMonitor, FeatureCollector, FeatureEngineer
 from app.market_indicators import MarketFeatures, MarketIndicatorEngine
 from app.ml_training import ModelScheduler, ModelTrainer
-from app.models import (
-    Base,
-    DecisionHistory,
-    MarketData,
-)
+from app.models import Base, DecisionHistory, MarketData
 from app.models import MarketFeatures as MarketFeaturesModel
-from app.models import (
-    MLModelMetadata,
-    MLPrediction,
-    Trade,
-    get_session_maker,
-)
+from app.models import MLModelMetadata, MLPrediction, Trade, get_session_maker
 
 
 class TestMLPipelineEndToEnd:
