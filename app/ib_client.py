@@ -12,6 +12,7 @@ from ib_insync import IB, Contract, Future, Option, Order, Trade
 from ib_insync.objects import AccountValue, PortfolioItem
 
 from app.config import config
+from app.instruments import instrument_manager
 from app.models import Trade as TradeModel
 
 logger = logging.getLogger(__name__)
@@ -70,6 +71,123 @@ class IBClient:
     def _on_order_status(self, trade):
         """Handle order status updates"""
         logger.info(f"Order status update: {trade.order.orderId} - {trade.orderStatus.status}")
+
+    async def get_contract_for_symbol(self, symbol: str) -> Contract:
+        """Get contract for any supported instrument symbol"""
+        spec = instrument_manager.get_instrument(symbol)
+        if not spec:
+            raise ValueError(f"Unknown instrument: {symbol}")
+
+        if spec.instrument_type.value == "futures":
+            return await self.get_futures_contract(symbol)
+        else:
+            raise ValueError(f"Unsupported instrument type: {spec.instrument_type}")
+
+    async def get_futures_contract(self, symbol: str, expiry: Optional[str] = None) -> Contract:
+        """Get futures contract for symbol"""
+        if symbol == "MES":
+            return await self.get_mes_contract(expiry)
+        else:
+            return await self.get_front_month_contract_for_symbol(symbol, expiry)
+
+    async def get_front_month_contract_for_symbol(
+        self, symbol: str, expiry: Optional[str] = None
+    ) -> Contract:
+        """Get front month contract for any futures symbol"""
+        spec = instrument_manager.get_instrument(symbol)
+        if not spec:
+            raise ValueError(f"Unknown instrument: {symbol}")
+
+        if expiry:
+            # Use specific expiry
+            contract = Future(symbol, expiry, spec.exchange)
+            qualified = await self.ib.qualifyContractsAsync(contract)
+            if qualified:
+                return qualified[0]
+            else:
+                raise ValueError(f"Could not qualify {symbol} contract for expiry {expiry}")
+        else:
+            # Use auto-detection (similar to MES logic)
+            return await self._get_front_month_contract_generic(symbol)
+
+    async def _get_front_month_contract_generic(self, symbol: str) -> Contract:
+        """Generic front month contract detection for any symbol"""
+        spec = instrument_manager.get_instrument(symbol)
+        if not spec:
+            raise ValueError(f"Unknown instrument: {symbol}")
+
+        try:
+            # Request available contracts from IB
+            base_contract = Future(symbol, "", spec.exchange)
+            contracts = await self.ib.reqContractDetailsAsync(base_contract)
+
+            if not contracts:
+                logger.warning(f"No {symbol} contracts found, falling back to estimation")
+                return await self._get_estimated_front_month_contract_generic(symbol)
+
+            # Filter and sort by expiry date
+            current_date = datetime.now().date()
+            rollover_threshold = current_date + timedelta(days=config.ib.contract_rollover_days)
+
+            valid_contracts = []
+            for contract_details in contracts:
+                expiry_str = contract_details.contract.lastTradeDateOrContractMonth
+                if expiry_str:
+                    try:
+                        expiry_date = datetime.strptime(expiry_str, "%Y%m%d").date()
+                        if expiry_date > rollover_threshold:
+                            valid_contracts.append((expiry_date, contract_details.contract))
+                    except ValueError:
+                        continue
+
+            if not valid_contracts:
+                logger.warning(f"No valid {symbol} contracts found, falling back to estimation")
+                return await self._get_estimated_front_month_contract_generic(symbol)
+
+            # Sort by expiry date and pick the nearest one
+            valid_contracts.sort(key=lambda x: x[0])
+            selected_expiry, selected_contract = valid_contracts[0]
+
+            logger.info(
+                f"Auto-selected {symbol} contract: "
+                f"{selected_contract.lastTradeDateOrContractMonth} "
+                f"(expires {selected_expiry})"
+            )
+            return selected_contract
+
+        except Exception as e:
+            logger.error(f"Error auto-detecting {symbol} contract: {e}")
+            logger.info(f"Falling back to estimated front month contract for {symbol}")
+            return await self._get_estimated_front_month_contract_generic(symbol)
+
+    async def _get_estimated_front_month_contract_generic(self, symbol: str) -> Contract:
+        """Fallback estimation for any symbol"""
+        spec = instrument_manager.get_instrument(symbol)
+        if not spec:
+            raise ValueError(f"Unknown instrument: {symbol}")
+
+        current_date = datetime.now()
+        rollover_threshold = current_date + timedelta(days=config.ib.contract_rollover_days)
+
+        # Simple estimation logic
+        if rollover_threshold.month != current_date.month:
+            target_month = rollover_threshold
+        else:
+            target_month = current_date
+
+        contract_month = target_month.strftime("%Y%m")
+
+        logger.warning(f"Estimating {symbol} contract month as {contract_month}")
+
+        contract = Future(symbol, contract_month, spec.exchange)
+        qualified = await self.ib.qualifyContractsAsync(contract)
+
+        if qualified:
+            return qualified[0]
+        else:
+            raise ValueError(
+                f"Could not qualify estimated {symbol} contract for month {contract_month}"
+            )
 
     async def get_front_month_contract(self) -> Contract:
         """Get the front month MES contract automatically"""
@@ -168,21 +286,33 @@ class IBClient:
         else:
             raise ValueError(f"Could not qualify MES contract for expiry {expiry}")
 
-    async def get_mes_option_contract(self, expiry: str, strike: float, right: str) -> Contract:
-        """Get MES option contract"""
-        cache_key = f"MES_{expiry}_{strike}_{right}"
+    async def get_option_contract(
+        self, symbol: str, expiry: str, strike: float, right: str
+    ) -> Contract:
+        """Get option contract for any instrument"""
+        spec = instrument_manager.get_instrument(symbol)
+        if not spec:
+            raise ValueError(f"Unknown instrument: {symbol}")
+
+        cache_key = f"{symbol}_{expiry}_{strike}_{right}"
 
         if cache_key in self.contracts_cache:
             return self.contracts_cache[cache_key]
 
-        contract = Option("MES", expiry, strike, right, "GLOBEX")
+        # Use option_symbol if different from underlying symbol
+        option_symbol = spec.option_symbol or symbol
+        contract = Option(option_symbol, expiry, strike, right, spec.exchange)
         qualified = await self.ib.qualifyContractsAsync(contract)
 
         if qualified:
             self.contracts_cache[cache_key] = qualified[0]
             return qualified[0]
         else:
-            raise ValueError(f"Could not qualify MES option: {expiry} {strike} {right}")
+            raise ValueError(f"Could not qualify {symbol} option: {expiry} {strike} {right}")
+
+    async def get_mes_option_contract(self, expiry: str, strike: float, right: str) -> Contract:
+        """Get MES option contract (backwards compatibility)"""
+        return await self.get_option_contract("MES", expiry, strike, right)
 
     async def get_current_price(self, contract: Contract) -> Optional[float]:
         """Get current market price for a contract"""
@@ -203,15 +333,19 @@ class IBClient:
             self.ib.cancelMktData(contract)
 
     async def get_atm_straddle_price(
-        self, underlying_price: float, expiry: str
+        self, symbol: str, underlying_price: float, expiry: str
     ) -> Tuple[float, float, float]:
-        """Get ATM straddle price and calculate implied move"""
-        try:
-            # Round to nearest strike (MES options typically in 25-point increments)
-            atm_strike = round(underlying_price / 25) * 25
+        """Get ATM straddle price for any instrument"""
+        spec = instrument_manager.get_instrument(symbol)
+        if not spec:
+            raise ValueError(f"Unknown instrument: {symbol}")
 
-            call_contract = await self.get_mes_option_contract(expiry, atm_strike, "C")
-            put_contract = await self.get_mes_option_contract(expiry, atm_strike, "P")
+        try:
+            # Round to nearest strike using instrument-specific increment
+            atm_strike = instrument_manager.round_to_strike(symbol, underlying_price)
+
+            call_contract = await self.get_option_contract(symbol, expiry, atm_strike, "C")
+            put_contract = await self.get_option_contract(symbol, expiry, atm_strike, "P")
 
             call_price = await self.get_current_price(call_contract)
             put_price = await self.get_current_price(put_contract)
@@ -221,11 +355,17 @@ class IBClient:
                 implied_move = straddle_price  # Simplified: straddle price ≈ implied daily move
                 return call_price, put_price, implied_move
             else:
-                raise ValueError("Could not get ATM option prices")
+                raise ValueError(f"Could not get ATM option prices for {symbol}")
 
         except Exception as e:
-            logger.error(f"Error getting ATM straddle price: {e}")
+            logger.error(f"Error getting ATM straddle price for {symbol}: {e}")
             raise
+
+    async def get_atm_straddle_price_legacy(
+        self, underlying_price: float, expiry: str
+    ) -> Tuple[float, float, float]:
+        """Get ATM straddle price and calculate implied move (legacy MES method)"""
+        return await self.get_atm_straddle_price("MES", underlying_price, expiry)
 
     async def place_bracket_order(
         self,
@@ -261,31 +401,37 @@ class IBClient:
 
     async def place_strangle(
         self,
+        symbol: str,
         underlying_price: float,
         call_strike: float,
         put_strike: float,
         expiry: str,
         max_premium: float,
     ) -> Dict:
-        """Place a complete strangle trade"""
+        """Place a complete strangle trade for any instrument"""
+        spec = instrument_manager.get_instrument(symbol)
+        if not spec:
+            raise ValueError(f"Unknown instrument: {symbol}")
+
         try:
             # Get option contracts
-            call_contract = await self.get_mes_option_contract(expiry, call_strike, "C")
-            put_contract = await self.get_mes_option_contract(expiry, put_strike, "P")
+            call_contract = await self.get_option_contract(symbol, expiry, call_strike, "C")
+            put_contract = await self.get_option_contract(symbol, expiry, put_strike, "P")
 
             # Get current option prices
             call_price = await self.get_current_price(call_contract)
             put_price = await self.get_current_price(put_contract)
 
             if not call_price or not put_price:
-                raise ValueError("Could not get option prices")
+                raise ValueError(f"Could not get option prices for {symbol}")
 
-            total_premium = (call_price + put_price) * 5  # MES multiplier is $5
+            # Calculate total premium using instrument-specific multiplier
+            total_premium = (call_price + put_price) * spec.option_multiplier
 
             if total_premium > max_premium:
                 raise ValueError(f"Total premium ${total_premium:.2f} exceeds max ${max_premium}")
 
-            # Calculate take profit prices (4x premium)
+            # Calculate take profit prices
             call_tp_price = call_price * config.trading.profit_target_multiplier
             put_tp_price = put_price * config.trading.profit_target_multiplier
 
@@ -304,11 +450,25 @@ class IBClient:
                 "call_strike": call_strike,
                 "put_strike": put_strike,
                 "underlying_price": underlying_price,
+                "symbol": symbol,
             }
 
         except Exception as e:
-            logger.error(f"Error placing strangle: {e}")
+            logger.error(f"Error placing strangle for {symbol}: {e}")
             raise
+
+    async def place_strangle_legacy(
+        self,
+        underlying_price: float,
+        call_strike: float,
+        put_strike: float,
+        expiry: str,
+        max_premium: float,
+    ) -> Dict:
+        """Place a complete strangle trade (legacy MES method)"""
+        return await self.place_strangle(
+            "MES", underlying_price, call_strike, put_strike, expiry, max_premium
+        )
 
     async def cancel_order(self, order_id: int) -> bool:
         """Cancel an order by ID"""

@@ -84,6 +84,7 @@ class LottoGridBot:
         self.running = False
         self.trading_halted = False
         self.daily_initialized = False
+        self.emergency_stop_triggered = False
 
         # Error handling and recovery
         self.circuit_breaker = CircuitBreaker()
@@ -148,6 +149,64 @@ class LottoGridBot:
             logger.error(f"Failed to start bot: {e}")
             self._log_system_event("BOT_ERROR", f"Bot startup failed: {e}")
             await self.stop()
+
+    async def emergency_stop(self):
+        """Emergency stop - immediately halt all trading and close positions"""
+        logger.critical("EMERGENCY STOP TRIGGERED")
+
+        # Set emergency flag
+        self.emergency_stop_triggered = True
+        self.running = False
+
+        # Remove emergency flag file if it exists
+        self._remove_emergency_flag()
+
+        try:
+            # Cancel all pending orders first
+            await self._cancel_all_orders()
+
+            # Close all open positions at market immediately
+            await self.strategy.flatten_all_positions()
+
+            # Stop scheduler
+            if self.scheduler.running:
+                self.scheduler.shutdown(wait=False)
+
+            logger.critical("EMERGENCY STOP COMPLETED - All positions closed, trading halted")
+            return True
+
+        except Exception as e:
+            logger.critical(f"EMERGENCY STOP FAILED: {e}")
+            return False
+
+    async def _cancel_all_orders(self):
+        """Cancel all open orders"""
+        try:
+            open_orders = await self.ib_client.get_open_orders()
+            for trade in open_orders:
+                await self.ib_client.cancel_order(trade.order.orderId)
+                logger.info(f"Cancelled order: {trade.order.orderId}")
+        except Exception as e:
+            logger.error(f"Error cancelling orders: {e}")
+
+    def _check_emergency_stop_flag(self) -> bool:
+        """Check if emergency stop flag file exists"""
+        import os
+
+        emergency_flag_file = "./data/emergency_stop.flag"
+        return os.path.exists(emergency_flag_file)
+
+    def _remove_emergency_flag(self):
+        """Remove emergency stop flag file"""
+        import os
+
+        emergency_flag_file = "./data/emergency_stop.flag"
+        try:
+            if os.path.exists(emergency_flag_file):
+                os.remove(emergency_flag_file)
+                logger.info("Emergency stop flag file removed")
+        except Exception as e:
+            logger.error(f"Error removing emergency flag file: {e}")
 
     async def stop(self):
         """Stop the trading bot gracefully"""
@@ -238,6 +297,12 @@ class LottoGridBot:
         """Main event loop"""
         while self.running:
             try:
+                # Check for emergency stop flag
+                if self._check_emergency_stop_flag():
+                    logger.warning("Emergency stop flag detected, triggering emergency stop")
+                    await self.emergency_stop()
+                    break
+
                 # Check if we need to initialize for the day
                 if self.ib_client.is_market_hours() and not self.daily_initialized:
                     await self._daily_initialization()

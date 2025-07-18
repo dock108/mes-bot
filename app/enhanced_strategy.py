@@ -240,7 +240,7 @@ class EnhancedLottoGridStrategy(LottoGridStrategy):
                 return None
 
             # Place the strangle with enhanced parameters
-            strangle_result = await self.ib_client.place_strangle(
+            strangle_result = await self.ib_client.place_strangle_legacy(
                 self.underlying_price,
                 call_strike,
                 put_strike,

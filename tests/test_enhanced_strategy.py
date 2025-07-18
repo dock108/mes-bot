@@ -391,8 +391,8 @@ class TestEnhancedLottoGridStrategy:
         assert result["ml_enhanced"] is True
 
         # Verify enhanced parameters were applied
-        mock_ib_client.place_strangle.assert_called_once()
-        call_args = mock_ib_client.place_strangle.call_args
+        mock_ib_client.place_strangle_legacy.assert_called_once()
+        call_args = mock_ib_client.place_strangle_legacy.call_args
         # Max premium should be adjusted by position multiplier
         # Original max_premium_per_strangle * 1.2
 

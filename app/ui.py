@@ -465,9 +465,25 @@ class Dashboard:
             col1, col2 = st.columns(2)
             with col1:
                 if st.button("✅ Yes, STOP ALL", type="primary", use_container_width=True):
-                    st.error("🛑 Emergency stop executed!")
-                    st.write("All positions closed. Trading halted.")
-                    # TODO: Implement actual emergency stop logic
+                    try:
+                        # Create emergency stop flag file
+                        import os
+
+                        emergency_flag_file = "./data/emergency_stop.flag"
+                        os.makedirs(os.path.dirname(emergency_flag_file), exist_ok=True)
+
+                        with open(emergency_flag_file, "w") as f:
+                            f.write(f"EMERGENCY_STOP_TRIGGERED_{datetime.now().isoformat()}")
+
+                        st.error("🛑 Emergency stop signal sent!")
+                        st.write(
+                            "Emergency stop flag created. Bot will halt trading on next cycle."
+                        )
+                        st.info("Monitor logs for confirmation of position closure.")
+
+                    except Exception as e:
+                        st.error(f"Failed to create emergency stop flag: {e}")
+
                     st.session_state.show_emergency_confirm = False
                     time.sleep(2)
                     st.rerun()

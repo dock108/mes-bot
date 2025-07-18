@@ -5,7 +5,7 @@ Configuration management for the MES 0DTE Lotto-Grid Options Bot
 import os
 from dataclasses import dataclass
 from datetime import time
-from typing import Optional
+from typing import List, Optional
 
 import pytz
 from dotenv import load_dotenv
@@ -56,6 +56,17 @@ class TradingConfig:
     # Risk management parameters
     critical_equity_threshold: float = float(os.getenv("CRITICAL_EQUITY_THRESHOLD", "0.3"))
     consecutive_loss_limit: int = int(os.getenv("CONSECUTIVE_LOSS_LIMIT", "10"))
+
+    # Multi-instrument configuration
+    active_instruments: List[str] = None  # Set from environment or use default
+    primary_instrument: str = os.getenv("PRIMARY_INSTRUMENT", "MES")
+
+    def __post_init__(self):
+        """Post-init processing for instrument configuration"""
+        if self.active_instruments is None:
+            # Parse from environment variable or use default
+            env_instruments = os.getenv("ACTIVE_INSTRUMENTS", "MES")
+            self.active_instruments = [s.strip() for s in env_instruments.split(",")]
 
     @property
     def daily_loss_limit(self) -> float:
