@@ -505,6 +505,7 @@ class TestMarketFeaturesDataclass:
             iv_percentile=70.0,
             iv_skew=0.05,
             iv_term_structure=0.02,
+            rsi_5m=52.0,
             rsi_15m=55.0,
             rsi_30m=58.0,
             macd_signal=0.15,
@@ -531,6 +532,8 @@ class TestMarketFeaturesDataclass:
             win_rate_recent=0.28,
             profit_factor_recent=1.8,
             sharpe_ratio_recent=1.2,
+            price=4200.0,
+            volume=1000000.0,
             timestamp=timestamp,
         )
 
@@ -553,6 +556,7 @@ class TestMarketFeaturesDataclass:
             iv_percentile=70.0,
             iv_skew=0.05,
             iv_term_structure=0.02,
+            rsi_5m=52.0,
             rsi_15m=55.0,
             rsi_30m=58.0,
             macd_signal=0.15,
@@ -579,6 +583,8 @@ class TestMarketFeaturesDataclass:
             win_rate_recent=0.28,
             profit_factor_recent=1.8,
             sharpe_ratio_recent=1.2,
+            price=4200.0,
+            volume=1000000.0,
             timestamp=datetime.utcnow(),
         )
 

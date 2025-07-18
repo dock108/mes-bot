@@ -108,8 +108,9 @@ class LottoGridBot:
     async def start(self):
         """Start the trading bot"""
         try:
-            logger.info("Starting MES 0DTE Lotto-Grid Options Bot...",
-                       startup_phase="initialization")
+            logger.info(
+                "Starting MES 0DTE Lotto-Grid Options Bot...", startup_phase="initialization"
+            )
 
             # Validate configuration
             config.validate()

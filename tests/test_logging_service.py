@@ -4,18 +4,19 @@ Tests for structured logging service with correlation IDs
 
 import json
 import logging
-import pytest
-from unittest.mock import MagicMock, patch
 from io import StringIO
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 from app.logging_service import (
-    CorrelationIdManager,
-    StructuredLogger,
-    StructuredFormatter,
     CorrelationIdFilter,
-    with_correlation_id,
+    CorrelationIdManager,
+    StructuredFormatter,
+    StructuredLogger,
     get_logger,
     setup_structured_logging,
+    with_correlation_id,
 )
 
 
@@ -29,7 +30,7 @@ class TestCorrelationIdManager:
 
         assert id1 != id2
         assert len(id1) == 36  # UUID4 length
-        assert '-' in id1
+        assert "-" in id1
 
     def test_set_and_get_id(self):
         """Test setting and getting correlation ID"""
@@ -76,7 +77,7 @@ class TestStructuredFormatter:
             lineno=10,
             msg="Test message",
             args=(),
-            exc_info=None
+            exc_info=None,
         )
         record.correlation_id = "test-id"
 
@@ -106,7 +107,7 @@ class TestStructuredFormatter:
             lineno=10,
             msg="Test message",
             args=(),
-            exc_info=None
+            exc_info=None,
         )
         record.correlation_id = "test-id"
         record.trade_signal = "BUY"
@@ -128,6 +129,7 @@ class TestStructuredFormatter:
             raise ValueError("Test exception")
         except ValueError:
             import sys
+
             record = logging.LogRecord(
                 name="test.logger",
                 level=logging.ERROR,
@@ -135,7 +137,7 @@ class TestStructuredFormatter:
                 lineno=10,
                 msg="Error occurred",
                 args=(),
-                exc_info=sys.exc_info()
+                exc_info=sys.exc_info(),
             )
             record.correlation_id = "test-id"
 
@@ -166,7 +168,7 @@ class TestCorrelationIdFilter:
             lineno=1,
             msg="Test",
             args=(),
-            exc_info=None
+            exc_info=None,
         )
 
         # Apply filter
@@ -192,7 +194,7 @@ class TestCorrelationIdFilter:
             lineno=1,
             msg="Test",
             args=(),
-            exc_info=None
+            exc_info=None,
         )
 
         filter_instance.filter(record)
@@ -248,9 +250,9 @@ class TestStructuredLogger:
         call_args = logger.logger.log.call_args
         assert call_args[0][0] == logging.INFO
         assert call_args[0][1] == "Trade signal generated"
-        assert call_args[1]['extra']['trade_signal'] == "BUY"
-        assert call_args[1]['extra']['trade_confidence'] == 0.85
-        assert call_args[1]['extra']['price'] == 4200.0
+        assert call_args[1]["extra"]["trade_signal"] == "BUY"
+        assert call_args[1]["extra"]["trade_confidence"] == 0.85
+        assert call_args[1]["extra"]["price"] == 4200.0
 
     def test_ml_prediction_logging(self):
         """Test ML prediction logging"""
@@ -261,8 +263,8 @@ class TestStructuredLogger:
 
         # Verify call
         call_args = logger.logger.log.call_args
-        assert call_args[1]['extra']['ml_model'] == "random_forest"
-        assert call_args[1]['extra']['ml_prediction'] == 0.72
+        assert call_args[1]["extra"]["ml_model"] == "random_forest"
+        assert call_args[1]["extra"]["ml_prediction"] == 0.72
 
     def test_notification_logging(self):
         """Test notification logging"""
@@ -273,8 +275,8 @@ class TestStructuredLogger:
 
         # Verify call
         call_args = logger.logger.log.call_args
-        assert call_args[1]['extra']['notification_channel'] == "email"
-        assert call_args[1]['extra']['notification_success'] == True
+        assert call_args[1]["extra"]["notification_channel"] == "email"
+        assert call_args[1]["extra"]["notification_success"] == True
 
 
 class TestCorrelationIdDecorator:
@@ -282,6 +284,7 @@ class TestCorrelationIdDecorator:
 
     def test_decorator_with_auto_id(self):
         """Test decorator with auto-generated ID"""
+
         @with_correlation_id()
         def test_function():
             return CorrelationIdManager.get_current_id()
@@ -333,6 +336,7 @@ class TestCorrelationIdDecorator:
     @pytest.mark.asyncio
     async def test_async_decorator(self):
         """Test decorator with async functions"""
+
         @with_correlation_id()
         async def async_test_function():
             return CorrelationIdManager.get_current_id()

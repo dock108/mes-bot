@@ -74,6 +74,10 @@ class MarketFeatures:
     profit_factor_recent: float
     sharpe_ratio_recent: float
 
+    # Basic market data
+    price: float
+    volume: float
+
     timestamp: datetime
 
 
@@ -547,6 +551,9 @@ class MarketIndicatorEngine:
             win_rate_recent=win_rate_recent,
             profit_factor_recent=profit_factor_recent,
             sharpe_ratio_recent=0.0,  # Placeholder
+            # Basic market data
+            price=current_price,
+            volume=volume_profile * 1000000.0,  # Estimated volume
             timestamp=timestamp,
         )
 

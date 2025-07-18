@@ -14,7 +14,7 @@ from typing import Any, Dict, Optional, Union
 from app.config import config
 
 # Context variable for correlation ID
-correlation_id_context: ContextVar[Optional[str]] = ContextVar('correlation_id', default=None)
+correlation_id_context: ContextVar[Optional[str]] = ContextVar("correlation_id", default=None)
 
 
 class CorrelationIdFilter(logging.Filter):
@@ -40,7 +40,7 @@ class StructuredFormatter(logging.Formatter):
             "level": record.levelname,
             "logger": record.name,
             "message": record.getMessage(),
-            "correlation_id": getattr(record, 'correlation_id', 'unknown'),
+            "correlation_id": getattr(record, "correlation_id", "unknown"),
             "thread_id": record.thread,
             "thread_name": record.threadName,
             "process_id": record.process,
@@ -56,10 +56,30 @@ class StructuredFormatter(logging.Formatter):
         # Add extra fields if present
         extra_fields = {}
         for key, value in record.__dict__.items():
-            if key not in ['name', 'msg', 'args', 'levelname', 'levelno', 'pathname', 'filename',
-                          'module', 'exc_info', 'exc_text', 'stack_info', 'lineno', 'funcName',
-                          'created', 'msecs', 'relativeCreated', 'thread', 'threadName',
-                          'processName', 'process', 'getMessage', 'correlation_id']:
+            if key not in [
+                "name",
+                "msg",
+                "args",
+                "levelname",
+                "levelno",
+                "pathname",
+                "filename",
+                "module",
+                "exc_info",
+                "exc_text",
+                "stack_info",
+                "lineno",
+                "funcName",
+                "created",
+                "msecs",
+                "relativeCreated",
+                "thread",
+                "threadName",
+                "processName",
+                "process",
+                "getMessage",
+                "correlation_id",
+            ]:
                 extra_fields[key] = value
 
         if extra_fields:
@@ -86,16 +106,18 @@ class StructuredLogger:
         # Extract structured fields from kwargs
         extra = {}
         for key, value in list(kwargs.items()):
-            if key.startswith(('trade_', 'market_', 'ml_', 'notification_', 'decision_', 'startup_')):
+            if key.startswith(
+                ("trade_", "market_", "ml_", "notification_", "decision_", "startup_")
+            ):
                 extra[key] = value
                 del kwargs[key]
-            elif key not in ['exc_info', 'extra', 'stack_info']:
+            elif key not in ["exc_info", "extra", "stack_info"]:
                 # Any other non-standard logging kwargs become extra fields
                 extra[key] = value
                 del kwargs[key]
 
         if extra:
-            kwargs['extra'] = extra
+            kwargs["extra"] = extra
 
         self.logger.log(level, msg, *args, **kwargs)
 
@@ -121,39 +143,19 @@ class StructuredLogger:
 
     def trade_decision(self, msg: str, signal: str, confidence: float, **kwargs):
         """Log trading decision with structured data"""
-        self.info(
-            msg,
-            trade_signal=signal,
-            trade_confidence=confidence,
-            **kwargs
-        )
+        self.info(msg, trade_signal=signal, trade_confidence=confidence, **kwargs)
 
     def market_data(self, msg: str, price: float, volume: float, **kwargs):
         """Log market data with structured fields"""
-        self.debug(
-            msg,
-            market_price=price,
-            market_volume=volume,
-            **kwargs
-        )
+        self.debug(msg, market_price=price, market_volume=volume, **kwargs)
 
     def ml_prediction(self, msg: str, model_name: str, prediction: float, **kwargs):
         """Log ML prediction with structured data"""
-        self.info(
-            msg,
-            ml_model=model_name,
-            ml_prediction=prediction,
-            **kwargs
-        )
+        self.info(msg, ml_model=model_name, ml_prediction=prediction, **kwargs)
 
     def notification_sent(self, msg: str, channel: str, success: bool, **kwargs):
         """Log notification event"""
-        self.info(
-            msg,
-            notification_channel=channel,
-            notification_success=success,
-            **kwargs
-        )
+        self.info(msg, notification_channel=channel, notification_success=success, **kwargs)
 
 
 class CorrelationIdManager:
@@ -182,6 +184,7 @@ class CorrelationIdManager:
 
 def with_correlation_id(correlation_id: Optional[str] = None):
     """Decorator to set correlation ID for a function"""
+
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
@@ -226,7 +229,7 @@ def with_correlation_id(correlation_id: Optional[str] = None):
                     CorrelationIdManager.clear_id()
 
         # Return async wrapper for async functions
-        if hasattr(func, '__code__') and func.__code__.co_flags & 0x80:
+        if hasattr(func, "__code__") and func.__code__.co_flags & 0x80:
             return async_wrapper
         else:
             return wrapper
@@ -245,13 +248,11 @@ def setup_structured_logging():
     # Create formatters
     structured_formatter = StructuredFormatter()
     console_formatter = logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - [%(correlation_id)s] - %(message)s'
+        "%(asctime)s - %(name)s - %(levelname)s - [%(correlation_id)s] - %(message)s"
     )
 
     # Create file handler with structured logging
-    file_handler = logging.FileHandler(
-        f"{config.logging.log_dir}/{config.logging.bot_log_file}"
-    )
+    file_handler = logging.FileHandler(f"{config.logging.log_dir}/{config.logging.bot_log_file}")
     file_handler.setFormatter(structured_formatter)
     file_handler.addFilter(CorrelationIdFilter())
 
@@ -268,9 +269,7 @@ def setup_structured_logging():
     root_logger.setLevel(getattr(logging, config.logging.level))
 
     # Create error handler
-    error_handler = logging.FileHandler(
-        f"{config.logging.log_dir}/{config.logging.error_log_file}"
-    )
+    error_handler = logging.FileHandler(f"{config.logging.log_dir}/{config.logging.error_log_file}")
     error_handler.setFormatter(structured_formatter)
     error_handler.addFilter(CorrelationIdFilter())
     error_handler.setLevel(logging.ERROR)
@@ -284,6 +283,7 @@ def get_logger(name: str) -> StructuredLogger:
 
 # Initialize structured logging if not already done
 _logging_initialized = False
+
 
 def initialize_logging():
     """Initialize structured logging (call once at startup)"""

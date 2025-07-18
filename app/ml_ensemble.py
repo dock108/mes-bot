@@ -305,7 +305,6 @@ class MLEnsembleImplementation:
                 "bid_ask_spread": market_features.bid_ask_spread,
                 "volume_profile": market_features.volume_profile,
                 # Volatility features
-                "realized_vol_5m": market_features.realized_vol_5m,
                 "realized_vol_15m": market_features.realized_vol_15m,
                 "realized_vol_30m": market_features.realized_vol_30m,
                 "atm_iv": market_features.atm_iv,

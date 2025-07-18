@@ -313,6 +313,7 @@ class TestFeatureEngineer:
             iv_percentile=65.0,
             iv_skew=0.02,
             iv_term_structure=0.01,
+            rsi_5m=52.0,
             rsi_15m=55.0,
             rsi_30m=58.0,
             macd_signal=0.1,
@@ -339,6 +340,8 @@ class TestFeatureEngineer:
             win_rate_recent=0.32,
             profit_factor_recent=1.9,
             sharpe_ratio_recent=1.3,
+            price=4200.0,
+            volume=1000000.0,
             timestamp=datetime.utcnow(),
         )
 

@@ -72,14 +72,30 @@ class TestEnhancedLottoGridStrategy:
         engine = create_engine(database_url)
         Base.metadata.create_all(engine)
 
-        strategy = EnhancedLottoGridStrategy(mock_ib_client, mock_risk_manager, database_url)
+        # Mock ML implementation to avoid file system operations
+        with patch("app.decision_engine.MLEnsembleImplementation") as mock_ml_impl:
+            mock_impl = Mock()
+            mock_impl.predict_entry_signal = AsyncMock(
+                return_value=(0.7, {"feature1": 0.3, "feature2": 0.4})
+            )
+            mock_impl.predict_exit_signal = AsyncMock(return_value=(0.6, {"exit_feature1": 0.2}))
+            mock_impl.optimize_strikes = AsyncMock(return_value=(4225.0, 4175.0))
+            mock_impl.get_model_status = Mock(
+                return_value={
+                    "entry_models": {"test_model": {"trained": True}},
+                    "exit_models": {"test_model": {"trained": True}},
+                    "total_predictions": 0,
+                }
+            )
+            mock_ml_impl.return_value = mock_impl
 
-        # Mock some internal components for testing
-        strategy.decision_engine = Mock(spec=DecisionEngine)
-        strategy.feature_collector = Mock(spec=FeatureCollector)
-        strategy.model_trainer = Mock(spec=ModelTrainer)
+            strategy = EnhancedLottoGridStrategy(mock_ib_client, mock_risk_manager, database_url)
 
-        return strategy
+            # Mock some internal components for testing
+            strategy.feature_collector = Mock(spec=FeatureCollector)
+            strategy.model_trainer = Mock(spec=ModelTrainer)
+
+            return strategy
 
     @pytest.mark.asyncio
     async def test_enhanced_initialization(self, enhanced_strategy, mock_ib_client):
@@ -720,7 +736,24 @@ class TestEnhancedStrategyIntegration:
         mock_risk_manager.can_open_new_trade = Mock(return_value=(True, "Approved"))
         mock_risk_manager.set_daily_start_equity = Mock()
 
-        return EnhancedLottoGridStrategy(mock_ib_client, mock_risk_manager, database_url)
+        # Mock ML implementation to avoid file system operations
+        with patch("app.decision_engine.MLEnsembleImplementation") as mock_ml_impl:
+            mock_impl = Mock()
+            mock_impl.predict_entry_signal = AsyncMock(
+                return_value=(0.7, {"feature1": 0.3, "feature2": 0.4})
+            )
+            mock_impl.predict_exit_signal = AsyncMock(return_value=(0.6, {"exit_feature1": 0.2}))
+            mock_impl.optimize_strikes = AsyncMock(return_value=(4225.0, 4175.0))
+            mock_impl.get_model_status = Mock(
+                return_value={
+                    "entry_models": {"test_model": {"trained": True}},
+                    "exit_models": {"test_model": {"trained": True}},
+                    "total_predictions": 0,
+                }
+            )
+            mock_ml_impl.return_value = mock_impl
+
+            return EnhancedLottoGridStrategy(mock_ib_client, mock_risk_manager, database_url)
 
     @pytest.mark.asyncio
     async def test_complete_enhanced_workflow(self, integration_strategy):

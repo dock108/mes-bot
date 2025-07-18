@@ -104,6 +104,7 @@ class TestVolatilityBasedModel:
             iv_percentile=75.0,
             iv_skew=0.02,
             iv_term_structure=0.01,
+            rsi_5m=42.0,
             rsi_15m=45.0,
             rsi_30m=50.0,
             macd_signal=0.05,
@@ -130,6 +131,9 @@ class TestVolatilityBasedModel:
             win_rate_recent=0.30,
             profit_factor_recent=1.8,
             sharpe_ratio_recent=1.1,
+            # Basic market data
+            price=4200.0,
+            volume=1000000.0,
             timestamp=datetime.utcnow(),
         )
 
@@ -161,6 +165,7 @@ class TestVolatilityBasedModel:
             iv_percentile=50.0,
             iv_skew=0.0,
             iv_term_structure=0.0,
+            rsi_5m=50.0,
             rsi_15m=50.0,
             rsi_30m=50.0,
             macd_signal=0.0,
@@ -187,6 +192,9 @@ class TestVolatilityBasedModel:
             win_rate_recent=0.25,
             profit_factor_recent=1.0,
             sharpe_ratio_recent=0.0,
+            # Basic market data
+            price=4200.0,
+            volume=1000000.0,
             timestamp=datetime.utcnow(),
         )
 
@@ -210,6 +218,7 @@ class TestVolatilityBasedModel:
             iv_percentile=20.0,
             iv_skew=0.0,
             iv_term_structure=0.0,
+            rsi_5m=43.0,
             rsi_15m=45.0,
             rsi_30m=50.0,  # Neutral RSI
             macd_signal=0.0,
@@ -236,6 +245,9 @@ class TestVolatilityBasedModel:
             win_rate_recent=0.25,
             profit_factor_recent=1.0,
             sharpe_ratio_recent=0.0,
+            # Basic market data
+            price=4200.0,
+            volume=1000000.0,
             timestamp=datetime.utcnow(),
         )
 
@@ -308,6 +320,7 @@ class TestVolatilityBasedModel:
             iv_percentile=50.0,
             iv_skew=0.0,
             iv_term_structure=0.0,
+            rsi_5m=72.0,
             rsi_15m=75.0,
             rsi_30m=80.0,  # Overbought
             macd_signal=0.0,
@@ -334,6 +347,9 @@ class TestVolatilityBasedModel:
             win_rate_recent=0.25,
             profit_factor_recent=1.0,
             sharpe_ratio_recent=0.0,
+            # Basic market data
+            price=4200.0,
+            volume=1000000.0,
             timestamp=datetime.utcnow(),
         )
 
@@ -355,7 +371,24 @@ class TestMLEnsembleModel:
     @pytest.fixture
     def model(self):
         """Create ML ensemble model"""
-        return MLEnsembleModel()
+        with patch("app.decision_engine.MLEnsembleImplementation") as mock_implementation:
+            # Mock the implementation to avoid file system operations
+            mock_impl = Mock()
+            mock_impl.predict_entry_signal = AsyncMock(
+                return_value=(0.7, {"feature1": 0.3, "feature2": 0.4})
+            )
+            mock_impl.predict_exit_signal = AsyncMock(return_value=(0.6, {"exit_feature1": 0.2}))
+            mock_impl.optimize_strikes = AsyncMock(return_value=(4225.0, 4175.0))
+            mock_impl.get_model_status = Mock(
+                return_value={
+                    "entry_models": {"test_model": {"trained": True}},
+                    "exit_models": {"test_model": {"trained": True}},
+                    "total_predictions": 0,
+                }
+            )
+            mock_implementation.return_value = mock_impl
+
+            return MLEnsembleModel(database_url="sqlite:///:memory:")
 
     @pytest.fixture
     def sample_features(self):
@@ -371,6 +404,7 @@ class TestMLEnsembleModel:
             iv_percentile=65.0,
             iv_skew=0.02,
             iv_term_structure=0.01,
+            rsi_5m=52.0,
             rsi_15m=55.0,
             rsi_30m=58.0,
             macd_signal=0.1,
@@ -397,6 +431,9 @@ class TestMLEnsembleModel:
             win_rate_recent=0.32,
             profit_factor_recent=1.9,
             sharpe_ratio_recent=1.3,
+            # Basic market data
+            price=4200.0,
+            volume=1000000.0,
             timestamp=datetime.utcnow(),
         )
 
@@ -409,12 +446,14 @@ class TestMLEnsembleModel:
         assert isinstance(importance, dict)
 
     @pytest.mark.asyncio
-    async def test_ml_adjustment_calculation(self, model, sample_features):
-        """Test ML adjustment factor calculation"""
-        adjustment = model._calculate_ml_adjustment(sample_features)
+    async def test_ml_model_status(self, model, sample_features):
+        """Test ML model status retrieval"""
+        status = model.get_model_status()
 
-        assert isinstance(adjustment, float)
-        assert -0.5 <= adjustment <= 0.5  # Reasonable adjustment range
+        assert isinstance(status, dict)
+        assert "entry_models" in status
+        assert "exit_models" in status
+        assert "total_predictions" in status
 
 
 class TestDecisionEngine:
@@ -423,7 +462,18 @@ class TestDecisionEngine:
     @pytest.fixture
     def engine(self):
         """Create decision engine"""
-        return DecisionEngine()
+        with patch("app.decision_engine.MLEnsembleImplementation") as mock_implementation:
+            # Mock the implementation to avoid file system operations
+            mock_impl = Mock()
+            mock_impl.predict_entry_signal = AsyncMock(
+                return_value=(0.7, {"feature1": 0.3, "feature2": 0.4})
+            )
+            mock_impl.predict_exit_signal = AsyncMock(return_value=(0.6, {"exit_feature1": 0.2}))
+            mock_impl.optimize_strikes = AsyncMock(return_value=(4225.0, 4175.0))
+            mock_impl.get_model_status = Mock(return_value={"models_loaded": True})
+            mock_implementation.return_value = mock_impl
+
+            return DecisionEngine(database_url="sqlite:///:memory:")
 
     @pytest.fixture
     def mock_features(self):
@@ -439,6 +489,7 @@ class TestDecisionEngine:
             iv_percentile=65.0,
             iv_skew=0.02,
             iv_term_structure=0.01,
+            rsi_5m=52.0,
             rsi_15m=55.0,
             rsi_30m=58.0,
             macd_signal=0.1,
@@ -465,6 +516,9 @@ class TestDecisionEngine:
             win_rate_recent=0.32,
             profit_factor_recent=1.9,
             sharpe_ratio_recent=1.3,
+            # Basic market data
+            price=4200.0,
+            volume=1000000.0,
             timestamp=datetime.utcnow(),
         )
 
@@ -503,6 +557,7 @@ class TestDecisionEngine:
                 iv_percentile=75.0,
                 iv_skew=0.02,
                 iv_term_structure=0.01,
+                rsi_5m=42.0,
                 rsi_15m=45.0,
                 rsi_30m=50.0,
                 macd_signal=0.05,
@@ -560,6 +615,7 @@ class TestDecisionEngine:
                 iv_percentile=15.0,  # High IV, low rank
                 iv_skew=0.01,
                 iv_term_structure=0.005,
+                rsi_5m=46.0,
                 rsi_15m=48.0,
                 rsi_30m=52.0,
                 macd_signal=0.0,
@@ -586,6 +642,9 @@ class TestDecisionEngine:
                 win_rate_recent=0.35,
                 profit_factor_recent=2.2,
                 sharpe_ratio_recent=1.5,
+                # Basic market data
+                price=4200.0,
+                volume=1000000.0,
                 timestamp=datetime.utcnow(),
             )
             mock_calc.return_value = favorable_features
@@ -636,6 +695,7 @@ class TestDecisionEngine:
             iv_percentile=75.0,
             iv_skew=0.02,
             iv_term_structure=0.01,
+            rsi_5m=42.0,
             rsi_15m=45.0,
             rsi_30m=50.0,
             macd_signal=0.05,
@@ -662,6 +722,9 @@ class TestDecisionEngine:
             win_rate_recent=0.30,
             profit_factor_recent=1.8,
             sharpe_ratio_recent=1.1,
+            # Basic market data
+            price=4200.0,
+            volume=1000000.0,
             timestamp=datetime.utcnow(),
         )
 
@@ -730,6 +793,7 @@ class TestDecisionEngine:
             iv_percentile=50.0,
             iv_skew=0.0,
             iv_term_structure=0.0,
+            rsi_5m=50.0,
             rsi_15m=50.0,
             rsi_30m=50.0,
             macd_signal=0.0,
@@ -756,6 +820,9 @@ class TestDecisionEngine:
             win_rate_recent=0.25,
             profit_factor_recent=1.0,
             sharpe_ratio_recent=0.0,
+            # Basic market data
+            price=4200.0,
+            volume=1000000.0,
             timestamp=datetime.utcnow(),
         )
 
@@ -792,7 +859,18 @@ class TestDecisionEngineIntegration:
     @pytest.fixture
     def engine(self):
         """Create decision engine for integration testing"""
-        return DecisionEngine()
+        with patch("app.decision_engine.MLEnsembleImplementation") as mock_implementation:
+            # Mock the implementation to avoid file system operations
+            mock_impl = Mock()
+            mock_impl.predict_entry_signal = AsyncMock(
+                return_value=(0.7, {"feature1": 0.3, "feature2": 0.4})
+            )
+            mock_impl.predict_exit_signal = AsyncMock(return_value=(0.6, {"exit_feature1": 0.2}))
+            mock_impl.optimize_strikes = AsyncMock(return_value=(4225.0, 4175.0))
+            mock_impl.get_model_status = Mock(return_value={"models_loaded": True})
+            mock_implementation.return_value = mock_impl
+
+            return DecisionEngine(database_url="sqlite:///:memory:")
 
     @pytest.mark.asyncio
     async def test_complete_decision_workflow(self, engine):
