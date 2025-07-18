@@ -11,7 +11,9 @@ import pytz
 from ib_insync import IB, Contract, Future, Option, Order, Trade
 from ib_insync.objects import AccountValue, PortfolioItem
 
+from app.circuit_breaker import CircuitOpenError, circuit_breaker
 from app.config import config
+from app.ib_connection_manager import ConnectionState, IBConnectionManager, with_connection_check
 from app.instruments import instrument_manager
 from app.models import Trade as TradeModel
 
@@ -33,8 +35,20 @@ class IBClient:
         self.ib.errorEvent += self._on_error
         self.ib.orderStatusEvent += self._on_order_status
 
+        # Initialize connection manager
+        self.connection_manager = IBConnectionManager(self)
+
+        # Set up connection callbacks
+        self.connection_manager.on_connected_callback = self._on_connection_restored
+        self.connection_manager.on_disconnected_callback = self._on_connection_lost
+        self.connection_manager.on_error_callback = self._on_connection_error
+
     async def connect(self) -> bool:
-        """Connect to IB Gateway/TWS"""
+        """Connect to IB Gateway/TWS with resilience"""
+        return await self.connection_manager.connect()
+
+    async def connect_direct(self) -> bool:
+        """Direct connection method for connection manager to use"""
         try:
             await self.ib.connectAsync(
                 host=config.ib.host, port=config.ib.port, clientId=config.ib.client_id, timeout=20
@@ -314,6 +328,24 @@ class IBClient:
         """Get MES option contract (backwards compatibility)"""
         return await self.get_option_contract("MES", expiry, strike, right)
 
+    async def _on_connection_restored(self):
+        """Handle connection restoration"""
+        logger.info("Connection restored - resuming operations")
+        # Re-subscribe to market data if needed
+        # Could add logic to refresh positions/orders here
+
+    async def _on_connection_lost(self):
+        """Handle connection loss"""
+        logger.warning("Connection lost - attempting recovery")
+        self.connected = False
+
+    async def _on_connection_error(self, error_msg: str):
+        """Handle connection errors"""
+        logger.error(f"Connection error: {error_msg}")
+        # Could add alerting logic here
+
+    @with_connection_check
+    @circuit_breaker(failure_threshold=5, recovery_timeout=60)
     async def get_current_price(self, contract: Contract) -> Optional[float]:
         """Get current market price for a contract"""
         try:
@@ -332,6 +364,7 @@ class IBClient:
         finally:
             self.ib.cancelMktData(contract)
 
+    @with_connection_check
     async def get_atm_straddle_price(
         self, symbol: str, underlying_price: float, expiry: str
     ) -> Tuple[float, float, float]:
@@ -367,6 +400,8 @@ class IBClient:
         """Get ATM straddle price and calculate implied move (legacy MES method)"""
         return await self.get_atm_straddle_price("MES", underlying_price, expiry)
 
+    @with_connection_check
+    @circuit_breaker(failure_threshold=3, recovery_timeout=30)
     async def place_bracket_order(
         self,
         contract: Contract,
@@ -399,6 +434,8 @@ class IBClient:
             logger.error(f"Error placing bracket order: {e}")
             raise
 
+    @with_connection_check
+    @circuit_breaker(failure_threshold=3, recovery_timeout=30)
     async def place_strangle(
         self,
         symbol: str,
@@ -470,6 +507,8 @@ class IBClient:
             "MES", underlying_price, call_strike, put_strike, expiry, max_premium
         )
 
+    @with_connection_check
+    @circuit_breaker(failure_threshold=3, recovery_timeout=30)
     async def cancel_order(self, order_id: int) -> bool:
         """Cancel an order by ID"""
         try:
@@ -491,6 +530,8 @@ class IBClient:
             logger.error(f"Error cancelling order {order_id}: {e}")
             return False
 
+    @with_connection_check
+    @circuit_breaker(failure_threshold=3, recovery_timeout=30)
     async def close_position_at_market(self, contract: Contract, quantity: int) -> Optional[Trade]:
         """Close a position with market order"""
         try:
@@ -507,6 +548,7 @@ class IBClient:
             logger.error(f"Error closing position: {e}")
             return None
 
+    @with_connection_check
     async def get_account_values(self) -> Dict[str, float]:
         """Get account values"""
         try:
@@ -521,6 +563,7 @@ class IBClient:
             logger.error(f"Error getting account values: {e}")
             return {}
 
+    @with_connection_check
     async def get_open_positions(self) -> List[PortfolioItem]:
         """Get open positions"""
         try:
@@ -529,6 +572,7 @@ class IBClient:
             logger.error(f"Error getting positions: {e}")
             return []
 
+    @with_connection_check
     async def get_open_orders(self) -> List[Trade]:
         """Get open orders"""
         try:
@@ -560,3 +604,18 @@ class IBClient:
     def get_today_expiry_string(self) -> str:
         """Get today's date in IB expiry format (YYYYMMDD)"""
         return date.today().strftime("%Y%m%d")
+
+    def is_connected(self) -> bool:
+        """Check if connected to IB"""
+        if hasattr(self, "connection_manager") and self.connection_manager:
+            return self.connection_manager.state == ConnectionState.CONNECTED
+        return self.connected
+
+    def get_connection_status(self) -> dict:
+        """Get detailed connection status"""
+        if hasattr(self, "connection_manager") and self.connection_manager:
+            return self.connection_manager.get_connection_info()
+        return {
+            "state": "CONNECTED" if self.connected else "DISCONNECTED",
+            "is_healthy": self.connected,
+        }
