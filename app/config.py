@@ -4,6 +4,7 @@ Configuration management for the MES 0DTE Lotto-Grid Options Bot
 
 import os
 from dataclasses import dataclass
+from datetime import time
 from typing import Optional
 
 import pytz
@@ -46,6 +47,15 @@ class TradingConfig:
     volatility_threshold: float = float(os.getenv("VOLATILITY_THRESHOLD", "0.67"))
     min_time_between_trades: int = int(os.getenv("MIN_TIME_BETWEEN_TRADES", "30"))
 
+    # Risk management parameters
+    critical_equity_threshold: float = float(os.getenv("CRITICAL_EQUITY_THRESHOLD", "0.3"))
+    consecutive_loss_limit: int = int(os.getenv("CONSECUTIVE_LOSS_LIMIT", "10"))
+
+    @property
+    def daily_loss_limit(self) -> float:
+        """Daily loss limit (same as max drawdown for compatibility)"""
+        return self.max_drawdown
+
     @property
     def is_live_trading(self) -> bool:
         """Check if live trading is enabled"""
@@ -64,6 +74,21 @@ class MarketHours:
     market_close_minute: int = int(os.getenv("MARKET_CLOSE_MINUTE", "0"))
     flatten_hour: int = int(os.getenv("FLATTEN_HOUR", "15"))
     flatten_minute: int = int(os.getenv("FLATTEN_MINUTE", "58"))
+
+    @property
+    def market_open(self) -> time:
+        """Get market open time as a time object"""
+        return time(self.market_open_hour, self.market_open_minute)
+
+    @property
+    def market_close(self) -> time:
+        """Get market close time as a time object"""
+        return time(self.market_close_hour, self.market_close_minute)
+
+    @property
+    def flatten_time(self) -> time:
+        """Get flatten time as a time object"""
+        return time(self.flatten_hour, self.flatten_minute)
 
 
 @dataclass

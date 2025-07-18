@@ -15,9 +15,9 @@ class TestBacktesterIntegration:
     """Test backtester with VIX integration"""
 
     @pytest.fixture
-    def backtester(self):
+    def backtester(self, test_db_url):
         """Create backtester instance"""
-        return LottoGridBacktester("sqlite:///./data/test_backtest.db")
+        return LottoGridBacktester(test_db_url)
 
     @pytest.fixture
     def mock_price_data(self):
@@ -75,9 +75,8 @@ class TestBacktesterIntegration:
 
         assert 0.05 <= volatility <= 2.0
 
-    @pytest.mark.asyncio
     @patch("app.backtester.VIXProvider")
-    async def test_run_backtest_with_vix_integration(self, mock_vix_class, backtester):
+    def test_run_backtest_with_vix_integration(self, mock_vix_class, backtester):
         """Test full backtest run with VIX integration"""
         # Mock VIX provider
         mock_vix_instance = Mock()
@@ -98,7 +97,7 @@ class TestBacktesterIntegration:
             mock_fetch.return_value = mock_data
 
             # Run backtest
-            results = await backtester.run_backtest(
+            results = backtester.run_backtest(
                 start_date=date(2025, 7, 10),
                 end_date=date(2025, 7, 10),
                 initial_capital=5000
@@ -112,8 +111,7 @@ class TestBacktesterIntegration:
             assert "final_capital" in results
             assert "total_return" in results
 
-    @pytest.mark.asyncio
-    async def test_run_backtest_without_vix_provider(self, backtester):
+    def test_run_backtest_without_vix_provider(self, backtester):
         """Test backtest continues without VIX when provider fails"""
         # Mock VIXProvider to raise error on init
         with patch("app.backtester.VIXProvider", side_effect=Exception("No API key")):
@@ -130,7 +128,7 @@ class TestBacktesterIntegration:
                 mock_fetch.return_value = mock_data
 
                 # Should still run without VIX
-                results = await backtester.run_backtest(
+                results = backtester.run_backtest(
                     start_date=date(2025, 7, 10),
                     end_date=date(2025, 7, 10),
                     initial_capital=5000

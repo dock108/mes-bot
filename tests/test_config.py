@@ -26,18 +26,29 @@ class TestTradingConfig:
         assert cfg.critical_equity_threshold == 0.3
         assert cfg.consecutive_loss_limit == 10
 
-    @patch.dict(os.environ, {
-        "MAX_OPEN_TRADES": "20",
-        "MAX_PREMIUM_PER_STRANGLE": "30.0",
-        "PROFIT_TARGET_MULTIPLIER": "5.0"
-    })
     def test_env_override(self):
         """Test environment variable overrides"""
-        cfg = TradingConfig()
+        # Since environment variables are read at module import time,
+        # we need to test the mechanism differently
+        import importlib
         
-        assert cfg.max_open_trades == 20
-        assert cfg.max_premium_per_strangle == 30.0
-        assert cfg.profit_target_multiplier == 5.0
+        with patch.dict(os.environ, {
+            "MAX_OPEN_TRADES": "20",
+            "MAX_PREMIUM_PER_STRANGLE": "30.0",
+            "PROFIT_TARGET_MULTIPLIER": "5.0"
+        }):
+            # Reload the config module to pick up new env vars
+            from app import config as config_module
+            importlib.reload(config_module)
+            
+            cfg = config_module.TradingConfig()
+            
+            assert cfg.max_open_trades == 20
+            assert cfg.max_premium_per_strangle == 30.0
+            assert cfg.profit_target_multiplier == 5.0
+            
+            # Reload again to restore original state
+            importlib.reload(config_module)
 
 
 class TestMarketHours:
@@ -51,21 +62,30 @@ class TestMarketHours:
         assert hours.market_close == time(16, 0)
         assert hours.flatten_time == time(15, 58)
 
-    @patch.dict(os.environ, {
-        "MARKET_OPEN_HOUR": "8",
-        "MARKET_OPEN_MINUTE": "0",
-        "MARKET_CLOSE_HOUR": "15",
-        "MARKET_CLOSE_MINUTE": "0",
-        "FLATTEN_HOUR": "14",
-        "FLATTEN_MINUTE": "55"
-    })
     def test_env_override(self):
         """Test market hours from environment"""
-        hours = MarketHours()
+        import importlib
         
-        assert hours.market_open == time(8, 0)
-        assert hours.market_close == time(15, 0)
-        assert hours.flatten_time == time(14, 55)
+        with patch.dict(os.environ, {
+            "MARKET_OPEN_HOUR": "8",
+            "MARKET_OPEN_MINUTE": "0",
+            "MARKET_CLOSE_HOUR": "15",
+            "MARKET_CLOSE_MINUTE": "0",
+            "FLATTEN_HOUR": "14",
+            "FLATTEN_MINUTE": "55"
+        }):
+            # Reload the config module to pick up new env vars
+            from app import config as config_module
+            importlib.reload(config_module)
+            
+            hours = config_module.MarketHours()
+            
+            assert hours.market_open == time(8, 0)
+            assert hours.market_close == time(15, 0)
+            assert hours.flatten_time == time(14, 55)
+            
+            # Reload again to restore original state
+            importlib.reload(config_module)
 
 
 class TestConfig:
@@ -92,18 +112,27 @@ class TestConfig:
         assert cfg.database.url == "sqlite:///./data/lotto_grid.db"
         assert cfg.logging.level == "INFO"
 
-    @patch.dict(os.environ, {
-        "IB_GATEWAY_HOST": "192.168.1.100",
-        "IB_GATEWAY_PORT": "7496",
-        "LOG_LEVEL": "DEBUG"
-    })
     def test_config_env_override(self):
         """Test config environment overrides"""
-        cfg = Config()
+        import importlib
         
-        assert cfg.ib.host == "192.168.1.100"
-        assert cfg.ib.port == 7496
-        assert cfg.logging.level == "DEBUG"
+        with patch.dict(os.environ, {
+            "IB_GATEWAY_HOST": "192.168.1.100",
+            "IB_GATEWAY_PORT": "7496",
+            "LOG_LEVEL": "DEBUG"
+        }):
+            # Reload the config module to pick up new env vars
+            from app import config as config_module
+            importlib.reload(config_module)
+            
+            cfg = config_module.Config()
+            
+            assert cfg.ib.host == "192.168.1.100"
+            assert cfg.ib.port == 7496
+            assert cfg.logging.level == "DEBUG"
+            
+            # Reload again to restore original state
+            importlib.reload(config_module)
 
 
 class TestConfigSingleton:
@@ -120,7 +149,7 @@ class TestConfigSingleton:
         """Test accessing config values"""
         # Should be able to access nested configs
         assert config.trading.max_open_trades > 0
-        assert config.market_hours.market_open.hour >= 0
+        assert config.market_hours.market_open_hour >= 0
         
         # Should have IB settings
         assert config.ib.port > 0

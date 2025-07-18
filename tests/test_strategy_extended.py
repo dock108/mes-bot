@@ -15,13 +15,12 @@ class TestLottoGridStrategyExtended:
     """Extended test cases for uncovered strategy methods"""
 
     @pytest.fixture
-    def strategy(self):
+    def strategy(self, test_db_url):
         """Create strategy instance with mocked dependencies"""
         mock_ib_client = Mock(spec=IBClient)
         mock_risk_manager = Mock(spec=RiskManager)
-        mock_db_url = "sqlite:///./data/test.db"
         
-        strategy = LottoGridStrategy(mock_ib_client, mock_risk_manager, mock_db_url)
+        strategy = LottoGridStrategy(mock_ib_client, mock_risk_manager, test_db_url)
         return strategy
 
     @pytest.mark.asyncio
