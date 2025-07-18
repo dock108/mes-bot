@@ -3,11 +3,12 @@
 import os
 from datetime import date, datetime, timedelta
 from unittest.mock import MagicMock, Mock, patch
+from urllib.parse import urlparse
 
 import pandas as pd
 import pytest
 import requests
-from urllib.parse import urlparse
+
 from app.data_providers.vix_provider import VIXProvider
 
 
