@@ -584,6 +584,8 @@ class TestDecisionEngine:
                 win_rate_recent=0.30,
                 profit_factor_recent=1.8,
                 sharpe_ratio_recent=1.1,
+                price=4200.0,
+                volume=1000000.0,
                 timestamp=datetime.utcnow(),
             )
             mock_calc.return_value = test_features
