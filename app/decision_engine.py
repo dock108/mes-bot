@@ -478,7 +478,7 @@ class DecisionEngine:
         prediction_values = list(model_predictions.values())
         if len(prediction_values) > 1:
             prediction_std = np.std(prediction_values)
-            confidence = max(0.1, 1.0 - prediction_std * 2)  # Lower std = higher confidence
+            confidence = max(0.1, 1.0 - float(prediction_std * 2))  # Lower std = higher confidence
         else:
             confidence = ensemble_signal
 
