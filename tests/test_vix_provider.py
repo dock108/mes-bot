@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, Mock, patch
 import pandas as pd
 import pytest
 import requests
-
+from urllib.parse import urlparse
 from app.data_providers.vix_provider import VIXProvider
 
 
@@ -26,7 +26,7 @@ class TestVIXProvider:
             provider = VIXProvider()
             assert provider.api_key == "test_key"
             assert provider.series_id == "VIXCLS"
-            assert "api.stlouisfed.org" in provider.base_url
+            assert urlparse(provider.base_url).hostname == "api.stlouisfed.org"
 
     @patch("requests.get")
     def test_get_vix_value_success(self, mock_get):
