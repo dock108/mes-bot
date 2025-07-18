@@ -24,6 +24,12 @@ class IBConfig:
     username: str = os.getenv("IB_USERNAME", "")
     password: str = os.getenv("IB_PASSWORD", "")
 
+    # Contract management
+    mes_contract_month: Optional[str] = os.getenv("MES_CONTRACT_MONTH", None)  # None = auto-detect
+    contract_rollover_days: int = int(
+        os.getenv("CONTRACT_ROLLOVER_DAYS", "3")
+    )  # Days before expiry to roll
+
     @property
     def is_paper_trading(self) -> bool:
         """Check if using paper trading port"""

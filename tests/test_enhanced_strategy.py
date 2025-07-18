@@ -46,7 +46,7 @@ class TestEnhancedLottoGridStrategy:
             }
         )
         client.is_market_hours = Mock(return_value=True)
-        client.get_today_expiry_string = Mock(return_value="20241213")
+        client.get_today_expiry_string = Mock(return_value=datetime.now().strftime("%Y%m%d"))
         client.get_mes_contract = AsyncMock(return_value=Mock())
         client.get_account_values = AsyncMock(return_value={"NetLiquidation": 10000.0})
         client.get_mes_option_contract = AsyncMock(return_value=Mock())
@@ -581,7 +581,9 @@ class TestEnhancedLottoGridStrategy:
             return_value=123
         )
         enhanced_strategy._get_current_vix = AsyncMock(return_value=20.0)
-        enhanced_strategy.ib_client.get_today_expiry_string = Mock(return_value="20241213")
+        enhanced_strategy.ib_client.get_today_expiry_string = Mock(
+            return_value=datetime.now().strftime("%Y%m%d")
+        )
         enhanced_strategy.ib_client.get_mes_option_contract = AsyncMock(return_value=Mock())
         enhanced_strategy._round_to_strike = Mock(return_value=4200.0)
 
@@ -708,7 +710,9 @@ class TestEnhancedStrategyIntegration:
         mock_ib_client.get_current_price = AsyncMock(return_value=4200.0)
         mock_ib_client.get_atm_straddle_price = AsyncMock(return_value=(15.0, 12.0, 27.0))
         mock_ib_client.is_market_hours = Mock(return_value=True)
-        mock_ib_client.get_today_expiry_string = Mock(return_value="20241213")
+        mock_ib_client.get_today_expiry_string = Mock(
+            return_value=datetime.now().strftime("%Y%m%d")
+        )
         mock_ib_client.get_mes_contract = AsyncMock(return_value=Mock())
         mock_ib_client.get_account_values = AsyncMock(return_value={"NetLiquidation": 10000.0})
 

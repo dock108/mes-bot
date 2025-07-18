@@ -24,7 +24,7 @@ class TestLottoGridStrategy:
         client.get_atm_straddle_price = AsyncMock(return_value=(15.0, 12.0, 27.0))
         client.place_strangle = AsyncMock(return_value={"total_premium": 20.0})
         client.is_market_hours = Mock(return_value=True)
-        client.get_today_expiry_string = Mock(return_value="20241213")
+        client.get_today_expiry_string = Mock(return_value=datetime.now().strftime("%Y%m%d"))
         return client
 
     @pytest.fixture

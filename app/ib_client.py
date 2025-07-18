@@ -4,7 +4,7 @@ Interactive Brokers API client using ib_insync
 
 import asyncio
 import logging
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 from typing import Dict, List, Optional, Tuple
 
 import pytz
@@ -71,11 +71,93 @@ class IBClient:
         """Handle order status updates"""
         logger.info(f"Order status update: {trade.order.orderId} - {trade.orderStatus.status}")
 
+    async def get_front_month_contract(self) -> Contract:
+        """Get the front month MES contract automatically"""
+        # Check if a specific contract month is configured
+        if config.ib.mes_contract_month:
+            logger.info(f"Using configured MES contract month: {config.ib.mes_contract_month}")
+            return await self.get_mes_contract(config.ib.mes_contract_month)
+
+        try:
+            # Request available MES contracts from IB
+            base_contract = Future("MES", "", "GLOBEX")
+            contracts = await self.ib.reqContractDetailsAsync(base_contract)
+
+            if not contracts:
+                logger.warning("No MES contracts found, falling back to current month estimation")
+                return await self._get_estimated_front_month_contract()
+
+            # Filter to get valid contracts and sort by expiry date
+            current_date = datetime.now().date()
+            rollover_threshold = current_date + timedelta(days=config.ib.contract_rollover_days)
+
+            valid_contracts = []
+            for contract_details in contracts:
+                expiry_str = contract_details.contract.lastTradeDateOrContractMonth
+                if expiry_str:
+                    # Parse expiry date (format: YYYYMMDD)
+                    try:
+                        expiry_date = datetime.strptime(expiry_str, "%Y%m%d").date()
+                        if expiry_date > rollover_threshold:
+                            valid_contracts.append((expiry_date, contract_details.contract))
+                    except ValueError:
+                        continue
+
+            if not valid_contracts:
+                logger.warning("No valid MES contracts found, falling back to estimation")
+                return await self._get_estimated_front_month_contract()
+
+            # Sort by expiry date and pick the nearest one
+            valid_contracts.sort(key=lambda x: x[0])
+            selected_expiry, selected_contract = valid_contracts[0]
+
+            logger.info(
+                f"Auto-selected MES contract: {selected_contract.lastTradeDateOrContractMonth} "
+                f"(expires {selected_expiry})"
+            )
+            return selected_contract
+
+        except Exception as e:
+            logger.error(f"Error auto-detecting MES contract: {e}")
+            logger.info("Falling back to estimated front month contract")
+            return await self._get_estimated_front_month_contract()
+
+    async def _get_estimated_front_month_contract(self) -> Contract:
+        """Fallback method to estimate front month contract when IB query fails"""
+        current_date = datetime.now()
+
+        # MES contracts typically expire on the 3rd Friday of the month
+        # If we're past the rollover threshold, use next month
+        rollover_threshold = current_date + timedelta(days=config.ib.contract_rollover_days)
+
+        # Simple estimation: if we're in the last few days of the month, use next month
+        if rollover_threshold.month != current_date.month:
+            target_month = rollover_threshold
+        else:
+            target_month = current_date
+
+        # Format as YYYYMM for the contract month
+        contract_month = target_month.strftime("%Y%m")
+
+        logger.warning(
+            f"Estimating MES contract month as {contract_month} "
+            f"(current date: {current_date.date()}, "
+            f"rollover threshold: {rollover_threshold.date()})"
+        )
+
+        contract = Future("MES", contract_month, "GLOBEX")
+        qualified = await self.ib.qualifyContractsAsync(contract)
+
+        if qualified:
+            return qualified[0]
+        else:
+            raise ValueError(f"Could not qualify estimated MES contract for month {contract_month}")
+
     async def get_mes_contract(self, expiry: Optional[str] = None) -> Contract:
         """Get MES futures contract"""
         if expiry is None:
-            # Use continuous front month
-            contract = Future("MES", "202412", "GLOBEX")  # Will need to update monthly
+            # Use automatic front month detection
+            return await self.get_front_month_contract()
         else:
             contract = Future("MES", expiry, "GLOBEX")
 
