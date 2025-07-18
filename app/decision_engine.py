@@ -14,10 +14,11 @@ import numpy as np
 import pandas as pd
 
 from app.config import config
+from app.logging_service import get_logger, with_correlation_id
 from app.market_indicators import MarketFeatures, MarketIndicatorEngine
 from app.ml_ensemble import MLEnsembleImplementation
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class DecisionConfidence(Enum):
@@ -433,10 +434,17 @@ class DecisionEngine:
                 vix_level, timestamp or datetime.utcnow()
             )
 
+    @with_correlation_id()
     async def generate_entry_signal(
         self, current_price: float, implied_move: float, vix_level: Optional[float] = None
     ) -> TradingSignal:
         """Generate comprehensive entry signal using all models"""
+        logger.info("Generating entry signal", 
+                   decision_type="entry", 
+                   market_price=current_price,
+                   market_implied_move=implied_move,
+                   market_vix=vix_level)
+        
         # Calculate all market features
         features = self.indicator_engine.calculate_all_features(
             current_price, implied_move, vix_level
@@ -451,8 +459,12 @@ class DecisionEngine:
                 signal, importance = await model.predict_entry_signal(features)
                 model_predictions[model_name] = signal
                 model_importance[model_name] = importance
+                logger.ml_prediction(f"Model {model_name} prediction complete", 
+                                   model_name, signal)
             except Exception as e:
-                logger.error(f"Error in {model_name} prediction: {e}")
+                logger.error(f"Error in {model_name} prediction: {e}", 
+                           ml_model=model_name, 
+                           ml_error=str(e))
                 model_predictions[model_name] = 0.0
                 model_importance[model_name] = {}
 
@@ -480,6 +492,11 @@ class DecisionEngine:
         else:
             action = "HOLD"
 
+        logger.trade_decision("Entry decision generated", action, confidence,
+                            decision_ensemble_signal=ensemble_signal,
+                            decision_models=model_predictions,
+                            decision_reasoning=reasoning[:3] if reasoning else [])
+
         # Optimize strike selection
         optimal_strikes = None
         if action == "ENTER":
@@ -489,8 +506,11 @@ class DecisionEngine:
                 optimal_strikes = await best_model.optimize_strikes(
                     features, current_price, implied_move
                 )
+                logger.info("Strike optimization complete", 
+                           decision_strikes=optimal_strikes)
             except Exception as e:
-                logger.error(f"Error optimizing strikes: {e}")
+                logger.error(f"Error optimizing strikes: {e}", 
+                           decision_error="strike_optimization_failed")
 
         # Calculate position size multiplier based on confidence
         position_size_multiplier = min(1.5, max(0.5, confidence * 1.5))

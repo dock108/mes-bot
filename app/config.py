@@ -5,8 +5,7 @@ Configuration management for the MES 0DTE Lotto-Grid Options Bot
 import os
 from dataclasses import dataclass
 from datetime import time
-from typing import List
-from typing import Optional
+from typing import List, Optional
 
 import pytz
 from dotenv import load_dotenv
@@ -133,6 +132,11 @@ class LoggingConfig:
     bot_log_file: str = "bot_run.log"
     error_log_file: str = "bot_errors.log"
     ib_log_file: str = "ib_messages.log"
+
+    # Structured logging configuration
+    structured_logging: bool = os.getenv("STRUCTURED_LOGGING", "true").lower() == "true"
+    json_format: bool = os.getenv("JSON_LOG_FORMAT", "true").lower() == "true"
+    correlation_ids: bool = os.getenv("CORRELATION_IDS", "true").lower() == "true"
 
 
 @dataclass

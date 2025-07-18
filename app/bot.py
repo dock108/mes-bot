@@ -15,21 +15,13 @@ from apscheduler.triggers.cron import CronTrigger
 
 from app.config import config
 from app.ib_client import IBClient
+from app.logging_service import get_logger, with_correlation_id
 from app.models import SystemLog, create_database, get_session_maker
 from app.risk_manager import RiskManager
 from app.strategy import LottoGridStrategy
 
-# Configure logging
-logging.basicConfig(
-    level=getattr(logging, config.logging.level),
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[
-        logging.FileHandler(f"{config.logging.log_dir}/{config.logging.bot_log_file}"),
-        logging.StreamHandler(sys.stdout),
-    ],
-)
-
-logger = logging.getLogger(__name__)
+# Use structured logging
+logger = get_logger(__name__)
 
 
 class CircuitBreaker:
@@ -112,18 +104,20 @@ class LottoGridBot:
         logger.info(f"Received signal {signum}, initiating graceful shutdown...")
         asyncio.create_task(self.stop())
 
+    @with_correlation_id()
     async def start(self):
         """Start the trading bot"""
         try:
-            logger.info("Starting MES 0DTE Lotto-Grid Options Bot...")
+            logger.info("Starting MES 0DTE Lotto-Grid Options Bot...",
+                       startup_phase="initialization")
 
             # Validate configuration
             config.validate()
-            logger.info("Configuration validated")
+            logger.info("Configuration validated", startup_phase="config_validation")
 
             # Create database
             create_database(config.database.url)
-            logger.info("Database initialized")
+            logger.info("Database initialized", startup_phase="database_init")
 
             # Connect to IB
             if not await self.ib_client.connect():
