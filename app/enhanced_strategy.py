@@ -11,6 +11,7 @@ import numpy as np
 from sqlalchemy.orm import Session
 
 from app.config import config
+from app.data_providers.vix_provider import VIXProvider
 from app.decision_engine import DecisionEngine, ExitSignal, TradingSignal
 from app.feature_pipeline import FeatureCollector
 from app.ib_client import IBClient
@@ -53,6 +54,9 @@ class EnhancedLottoGridStrategy(LottoGridStrategy):
         self.last_ml_training = None
         self.current_market_regime = None
 
+        # VIX data provider
+        self.vix_provider = None  # Initialize when needed
+
         logger.info(f"Enhanced strategy initialized. ML enabled: {self.ml_enabled}")
 
     async def initialize_daily_session(self) -> bool:
@@ -64,6 +68,14 @@ class EnhancedLottoGridStrategy(LottoGridStrategy):
                 return False
 
             logger.info("Initializing enhanced ML components...")
+
+            # Initialize VIX provider
+            try:
+                self.vix_provider = VIXProvider()
+                logger.info("VIX data provider initialized successfully")
+            except Exception as e:
+                logger.warning(f"Could not initialize VIX provider: {e}")
+                self.vix_provider = None
 
             # Initialize decision engine with current market data
             await self._initialize_decision_engine()
@@ -366,9 +378,18 @@ class EnhancedLottoGridStrategy(LottoGridStrategy):
             logger.error(f"Error collecting market features: {e}")
 
     async def _get_current_vix(self) -> float:
-        """Get current VIX level (placeholder implementation)"""
-        # In real implementation, fetch from data provider
-        return 20.0  # Placeholder value
+        """Get current VIX level from FRED API"""
+        if self.vix_provider:
+            try:
+                vix_value = self.vix_provider.get_latest_vix()
+                logger.debug(f"Current VIX: {vix_value}")
+                return vix_value
+            except Exception as e:
+                logger.warning(f"Failed to get VIX data: {e}")
+
+        # Fallback to default value
+        logger.debug("Using default VIX value: 20.0")
+        return 20.0
 
     def _combine_signals(
         self, basic_should_trade: bool, basic_reason: str, ml_signal: TradingSignal

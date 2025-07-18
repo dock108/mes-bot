@@ -110,6 +110,10 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+.virtualenv/
+.pyenv/
+.env.local
+.env.*.local
 
 # Spyder project settings
 .spyderproject
@@ -143,93 +147,224 @@ cython_debug/
 
 # macOS
 .DS_Store
+.DS_Store?
 .AppleDouble
 .LSOverride
+._*
+.Spotlight-V100
+.Trashes
+.fseventsd
+.TemporaryItems
+.VolumeIcon.icns
+.com.apple.*
 
 # Windows
 Thumbs.db
+Thumbs.db:encryptable
 ehthumbs.db
+ehthumbs_vista.db
 Desktop.ini
+desktop.ini
 
 # Linux
 *~
+
+# Claude Code / AI Assistant artifacts
+.claude/
+.claude_artifacts/
+.cursor/
+.continue/
+.codeium/
+.copilot/
+.ai/
+claude_workspace/
+claude_cache/
+ai_sessions/
+
+# Test results and reports
+test_results/
+test-results/
+test_output/
+test_reports/
+pytest_results/
+pytest_html_report/
+junit/
+junit.xml
+test-report.xml
+test-results.xml
+coverage.json
+coverage.lcov
+.coverage.py*
+bandit-report.json
+safety-report.json
+flake8-report.txt
+mypy-report.txt
+isort-report.txt
+black-report.txt
+.testmondata
+
+# Performance profiling
+profiles/
+*.prof
+*.lprof
+*.stats
+*.callgrind
+*.flamegraph
+.benchmark/
+benchmark_results/
+
+# ML Model artifacts
+models/*.pkl
+models/*.joblib
+models/*.h5
+models/*.pt
+models/*.pth
+models/*.onnx
+models/*.meta
+model_checkpoints/
+model_cache/
+trained_models/
+*.checkpoint
 
 # Application specific
 data/*.db
 data/*.sqlite
 data/*.sqlite3
+data/*.sql
+data/*.dump
+data/*.csv
+data/*.json
+data/*.parquet
+data/*.feather
+data/*.xlsx
+data/*.xls
+data/backups/
+db_backups/
+database_dumps/
+raw_data/
+processed_data/
+cache_data/
 logs/*.log
 logs/*.out
 logs/*.err
+logs/*.log.*
+logs/*-*.log
+logs/*.gz
+logs/*.zip
+*.log.[0-9]*
 backups/
 *.tmp
 *.temp
 
-# Docker
-.dockerignore
-
-# Streamlit
-.streamlit/
-
-# IB Gateway specific
-Jts/
-*.xml
-*.properties
-
 # Trading specific
-*.csv
 historical_data/
 market_data/
 
-# Jupyter notebooks (if any)
+# Docker
+.dockerignore
+docker_volumes/
+.docker/
+
+# Streamlit
+.streamlit/
+!.streamlit/config.toml
+
+# IB Gateway specific
+Jts/
+Jts*/
+IBController*/
+*.xml
+*.properties
+*.opt
+*.ini
+gateway.log*
+
+# Interactive session history
+.python_history
+.ipython/
+.jupyter/
 notebooks/
+notebook_checkpoints/
 
-# Development
-.venv*/
-.env.*
-!.env.example
+# Local development scripts
+local_scripts/
+dev_scripts/
+scratch/
+playground/
+experiments/
 
-# Backup files
-*.bak
-*.backup
-*~
+# Documentation build artifacts
+docs/_build/
+docs/_static/
+docs/_templates/
+site/
+mkdocs_build/
 
-# OS generated files
-Thumbs.db
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-
-# IDE files
+# Editor swap and backup files
 *.swp
 *.swo
-*~
+*.swn
+*.bak
+*.backup
+.#*
+\#*#
 
-# Certificates and keys
+# Security and secrets
+.secrets/
+secrets/
 *.pem
 *.key
 *.crt
 *.p12
+*.pfx
+.ssl/
+certificates/
 
-# Local configuration overrides
-config.local.py
-settings.local.py
+# Temporary test files
+test_*.py.tmp
+test_data_sources.py
+test_scratch*.py
+*_test_temp.py
 
-# Test artifacts
-.testmondata
-.coverage.*
-htmlcov/
+# Screenshots and media
+screenshots/
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.mp4
+*.mov
+!docs/images/*
+!static/images/*
 
-# Profiling
-*.prof
-
-# Deployment
-*.tar.gz
+# Compressed files
+*.gz
 *.zip
+*.tar
+*.tar.gz
+*.tgz
+*.rar
+*.7z
+
+# Core dumps
+core
+core.*
+*.stackdump
+
+# Package management
+.pip/
+.poetry/
+.conda/
+.pixi/
+pip-wheel-metadata/
 
 # Temporary data
 temp/
 tmp/
+
+# Keep important files
+!.env.example
+!config.example.py
+!settings.example.json
+!CLAUDE.md
+!.claude_instructions
