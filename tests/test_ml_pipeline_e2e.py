@@ -771,6 +771,7 @@ class TestMLPipelinePerformance:
                 vix_term_structure=0.02,
                 market_correlation=0.7,
                 volume_profile=1.05,
+                market_regime="normal",
                 time_of_day=13.0,
                 day_of_week=2.0,
                 time_to_expiry=4.0,
