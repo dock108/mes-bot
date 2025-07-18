@@ -16,13 +16,7 @@ class TestIBConfig:
     def test_default_values(self):
         """Test default IB config values"""
         # Test with default initialization (no env vars)
-        ib_config = IBConfig(
-            host="127.0.0.1",
-            port=7497,
-            client_id=1,
-            username="",
-            password=""
-        )
+        ib_config = IBConfig(host="127.0.0.1", port=7497, client_id=1, username="", password="")
         assert ib_config.host == "127.0.0.1"
         assert ib_config.port == 7497
         assert ib_config.client_id == 1
@@ -43,11 +37,7 @@ class TestIBConfig:
         """Test environment variable override"""
         # Test by directly creating instance with values
         ib_config = IBConfig(
-            host="192.168.1.100",
-            port=7496,
-            client_id=5,
-            username="testuser",
-            password="testpass"
+            host="192.168.1.100", port=7496, client_id=5, username="testuser", password="testpass"
         )
         assert ib_config.host == "192.168.1.100"
         assert ib_config.port == 7496
@@ -109,7 +99,7 @@ class TestTradingConfig:
             volatility_threshold=0.5,
             min_time_between_trades=60,
             critical_equity_threshold=0.2,
-            consecutive_loss_limit=5
+            consecutive_loss_limit=5,
         )
         assert trading_config.trade_mode == "live"
         assert trading_config.start_cash == 10000.0
@@ -141,13 +131,13 @@ class TestMarketHours:
     def test_time_properties(self):
         """Test time object properties"""
         market_hours = MarketHours()
-        
+
         # Test market_open property
         assert market_hours.market_open == time(9, 30)
-        
+
         # Test market_close property
         assert market_hours.market_close == time(16, 0)
-        
+
         # Test flatten_time property
         assert market_hours.flatten_time == time(15, 58)
 
@@ -165,7 +155,7 @@ class TestMarketHours:
             market_close_hour=17,
             market_close_minute=30,
             flatten_hour=17,
-            flatten_minute=25
+            flatten_minute=25,
         )
         assert market_hours.market_open_hour == 8
         assert market_hours.market_open_minute == 0
@@ -173,7 +163,7 @@ class TestMarketHours:
         assert market_hours.market_close_minute == 30
         assert market_hours.flatten_hour == 17
         assert market_hours.flatten_minute == 25
-        
+
         # Verify properties work with overrides
         assert market_hours.market_open == time(8, 0)
         assert market_hours.market_close == time(17, 30)
@@ -200,11 +190,11 @@ class TestConfigObject:
 
     def test_config_object_structure(self):
         """Test that config object has all components"""
-        assert hasattr(config, 'ib')
-        assert hasattr(config, 'trading')
-        assert hasattr(config, 'market_hours')
-        assert hasattr(config, 'database')
-        
+        assert hasattr(config, "ib")
+        assert hasattr(config, "trading")
+        assert hasattr(config, "market_hours")
+        assert hasattr(config, "database")
+
         assert isinstance(config.ib, IBConfig)
         assert isinstance(config.trading, TradingConfig)
         assert isinstance(config.market_hours, MarketHours)
@@ -215,10 +205,11 @@ class TestConfigObject:
         # Modify a value
         original_port = config.ib.port
         config.ib.port = 9999
-        
+
         # Import again and verify it's the same instance
         from app.config import config as config2
+
         assert config2.ib.port == 9999
-        
+
         # Restore original value
         config.ib.port = original_port

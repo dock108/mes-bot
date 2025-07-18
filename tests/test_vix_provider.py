@@ -167,12 +167,12 @@ class TestVIXProvider:
         """Test cache clearing functionality"""
         with patch.dict(os.environ, {"FRED_API_KEY": "test_key"}):
             provider = VIXProvider()
-            
+
             # The cache_clear method is available on lru_cache decorated methods
             # Let's just verify it exists and can be called
-            assert hasattr(provider.get_vix_value, 'cache_clear')
+            assert hasattr(provider.get_vix_value, "cache_clear")
             assert callable(provider.get_vix_value.cache_clear)
-            
+
             # Call clear_cache and verify it doesn't raise
             provider.clear_cache()
 
@@ -188,12 +188,12 @@ class TestVIXProvider:
 
         with patch.dict(os.environ, {"FRED_API_KEY": "test_key"}):
             provider = VIXProvider()
-            
+
             # First call
             vix1 = provider.get_vix_value(date(2025, 7, 17))
             # Second call - should use cache
             vix2 = provider.get_vix_value(date(2025, 7, 17))
-            
+
             assert vix1 == vix2 == 15.25
             # Should only call API once due to caching
             mock_get.assert_called_once()

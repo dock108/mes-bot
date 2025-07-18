@@ -19,7 +19,7 @@ class TestStrategyErrorHandling:
         """Create strategy instance with mocked dependencies"""
         mock_ib_client = Mock(spec=IBClient)
         mock_risk_manager = Mock(spec=RiskManager)
-        
+
         strategy = LottoGridStrategy(mock_ib_client, mock_risk_manager, test_db_url)
         return strategy
 
@@ -32,14 +32,14 @@ class TestStrategyErrorHandling:
             "call_price": 2.5,
             "put_price": 2.0,
             "total_premium": 22.5,
-            "implied_move": 50
+            "implied_move": 50,
         }
-        
+
         # Mock session to raise error
         mock_session = Mock()
         mock_session.add.side_effect = SQLAlchemyError("Database error")
         strategy.session_maker = Mock(return_value=mock_session)
-        
+
         # Should raise error
         with pytest.raises(SQLAlchemyError):
             await strategy._record_trade(trade_details)
@@ -51,7 +51,7 @@ class TestStrategyErrorHandling:
         should_trade, reason = strategy.should_place_trade()
         assert should_trade is False
         assert "Implied move not calculated" in reason
-        
+
         # Recent trade (within cooldown)
         strategy.implied_move = 50
         strategy.last_trade_time = datetime.utcnow() - timedelta(minutes=5)
@@ -89,9 +89,9 @@ class TestStrategyErrorHandling:
         strategy.ib_client.get_current_price = AsyncMock(return_value=2.5)
         strategy.ib_client.get_account_values = AsyncMock(return_value={"NetLiquidation": 5000})
         strategy.ib_client.place_strangle = AsyncMock(side_effect=Exception("Order rejected"))
-        
+
         strategy.risk_manager.can_open_new_trade = Mock(return_value=(True, "OK"))
-        
+
         # Should return None on error
         result = await strategy.place_strangle_trade(4300, 4200)
         assert result is None
@@ -99,15 +99,15 @@ class TestStrategyErrorHandling:
     # Note: _get_implied_move method doesn't exist in strategy.py
     # This test was for a non-existent method
 
-    @pytest.mark.asyncio 
+    @pytest.mark.asyncio
     async def test_check_exit_conditions_price_fetch_error(self, strategy):
         """Test _check_exit_conditions with price fetch error"""
         mock_trade = Mock()
         mock_trade.call_strike = 4300
         mock_trade.put_strike = 4200
-        
+
         strategy.ib_client.get_option_prices = AsyncMock(side_effect=Exception("API error"))
-        
+
         # _check_exit_conditions doesn't exist in strategy.py
         # This test is for a non-existent method
         pass  # Skip this test
