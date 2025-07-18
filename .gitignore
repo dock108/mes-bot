@@ -48,6 +48,8 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 cover/
+# Coverage directory (all coverage files in one place)
+.coverage/
 
 # Translations
 *.mo

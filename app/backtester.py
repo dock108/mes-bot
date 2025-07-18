@@ -479,8 +479,8 @@ class LottoGridBacktester:
         if end_date > date.today():
             raise ValueError(f"End date {end_date} cannot be in the future")
 
-        if start_date >= end_date:
-            raise ValueError(f"Start date {start_date} must be before end date {end_date}")
+        if start_date > end_date:
+            raise ValueError(f"Start date {start_date} must be before or equal to end date {end_date}")
 
         # Initialize VIX provider if available
         try:

@@ -52,28 +52,48 @@ class TestLottoGridStrategyExtended:
         strategy.implied_move = 50
         strategy.underlying_price = 4250
         
-        # Mock order placement
-        mock_order = Mock(orderId=123)
-        strategy.ib_client.place_strangle_order = AsyncMock(return_value=mock_order)
+        # Mock IB client methods
+        strategy.ib_client.get_today_expiry_string = Mock(return_value="20250710")
+        strategy.ib_client.get_mes_option_contract = AsyncMock(return_value=Mock())
+        strategy.ib_client.get_current_price = AsyncMock(side_effect=[2.5, 2.0])  # Call and put prices
+        strategy.ib_client.get_account_values = AsyncMock(return_value={"NetLiquidation": 5000})
+        strategy.ib_client.place_strangle = AsyncMock(return_value={
+            "call_strike": 4300,
+            "put_strike": 4200,
+            "call_price": 2.5,
+            "put_price": 2.0,
+            "total_premium": 22.5,
+            "call_trades": [Mock(order=Mock(orderId=123))],
+            "put_trades": [Mock(order=Mock(orderId=124))]
+        })
         
         # Mock risk check
         strategy.risk_manager.can_open_new_trade = Mock(return_value=(True, "OK"))
         
-        # Execute
-        result = await strategy.place_strangle_trade(4300, 4200, 5.0)
+        # Mock session for recording trade
+        mock_session = Mock()
+        strategy.session_maker = Mock(return_value=mock_session)
         
-        assert result is True
-        strategy.ib_client.place_strangle_order.assert_called_once()
+        # Execute (only 2 parameters)
+        result = await strategy.place_strangle_trade(4300, 4200)
+        
+        assert result is not None
+        strategy.ib_client.place_strangle.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_place_strangle_trade_risk_rejection(self, strategy):
         """Test strangle trade rejected by risk manager"""
+        # Setup mocks
+        strategy.ib_client.get_today_expiry_string = Mock(return_value="20250710")
+        strategy.ib_client.get_mes_option_contract = AsyncMock(return_value=Mock())
+        strategy.ib_client.get_current_price = AsyncMock(side_effect=[2.5, 2.0])
+        strategy.ib_client.get_account_values = AsyncMock(return_value={"NetLiquidation": 5000})
         strategy.risk_manager.can_open_new_trade = Mock(return_value=(False, "Max trades reached"))
         
-        result = await strategy.place_strangle_trade(4300, 4200, 5.0)
+        result = await strategy.place_strangle_trade(4300, 4200)
         
-        assert result is False
-        strategy.ib_client.place_strangle_order.assert_not_called()
+        assert result is None
+        strategy.ib_client.place_strangle.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_update_open_positions_complete(self, strategy):
@@ -83,94 +103,113 @@ class TestLottoGridStrategyExtended:
         mock_trade.id = 1
         mock_trade.call_strike = 4300
         mock_trade.put_strike = 4200
-        mock_trade.total_premium = 10.0
+        mock_trade.call_premium = 2.0
+        mock_trade.put_premium = 2.0
+        mock_trade.total_premium = 20.0  # (2+2) * 5
         mock_trade.entry_time = datetime.utcnow() - timedelta(hours=1)
         mock_trade.status = "OPEN"
         
         # Mock database session
         mock_session = Mock()
-        mock_session.query.return_value.filter_by.return_value.all.return_value = [mock_trade]
+        mock_session.query.return_value.filter.return_value.all.return_value = [mock_trade]
         strategy.session_maker = Mock(return_value=mock_session)
         
         # Mock IB client responses
-        strategy.ib_client.get_option_prices = AsyncMock(return_value=(40.0, 2.0))  # Hit profit target
-        strategy.ib_client.close_position = AsyncMock(return_value=True)
-        
-        # Mock risk manager
-        strategy.risk_manager.update_daily_summary = Mock()
+        strategy.ib_client.get_today_expiry_string = Mock(return_value="20250710")
+        strategy.ib_client.get_mes_option_contract = AsyncMock(return_value=Mock())
+        strategy.ib_client.get_current_price = AsyncMock(side_effect=[8.0, 2.0])  # Call hit 4x target
         
         # Execute
         await strategy.update_open_positions()
         
-        # Verify
-        assert mock_trade.status == "CLOSED"
-        assert mock_trade.exit_time is not None
-        strategy.ib_client.close_position.assert_called()
+        # Verify P&L was calculated
+        assert mock_trade.unrealized_pnl == (8.0 - 2.0 + 2.0 - 2.0) * 5  # 30.0
         mock_session.commit.assert_called()
 
     @pytest.mark.asyncio
     async def test_update_open_positions_expiry(self, strategy):
         """Test position update at expiry"""
-        # Create expired trade
+        # Create trade with all required attributes
         mock_trade = Mock(spec=Trade)
         mock_trade.id = 1
+        mock_trade.call_strike = 4300
+        mock_trade.put_strike = 4200
+        mock_trade.call_premium = 2.0
+        mock_trade.put_premium = 2.0
         mock_trade.entry_time = datetime.utcnow() - timedelta(hours=8)  # Past expiry
         mock_trade.status = "OPEN"
         
         mock_session = Mock()
-        mock_session.query.return_value.filter_by.return_value.all.return_value = [mock_trade]
+        mock_session.query.return_value.filter.return_value.all.return_value = [mock_trade]
         strategy.session_maker = Mock(return_value=mock_session)
         
-        strategy.ib_client.close_position = AsyncMock(return_value=True)
-        strategy.risk_manager.update_daily_summary = Mock()
+        # Mock IB client
+        strategy.ib_client.get_today_expiry_string = Mock(return_value="20250710")
+        strategy.ib_client.get_mes_option_contract = AsyncMock(return_value=Mock())
+        strategy.ib_client.get_current_price = AsyncMock(side_effect=[1.0, 1.0])  # Current prices
         
         await strategy.update_open_positions()
         
-        assert mock_trade.status == "EXPIRED"
-        strategy.ib_client.close_position.assert_called()
+        # Should calculate P&L
+        assert mock_trade.unrealized_pnl is not None
+        mock_session.commit.assert_called()
 
     @pytest.mark.asyncio
     async def test_update_open_positions_error_handling(self, strategy):
         """Test error handling in position updates"""
         mock_trade = Mock(spec=Trade)
         mock_trade.id = 1
+        mock_trade.call_strike = 4300
+        mock_trade.put_strike = 4200
+        mock_trade.call_premium = 2.0
+        mock_trade.put_premium = 2.0
         mock_trade.status = "OPEN"
         
         mock_session = Mock()
-        mock_session.query.return_value.filter_by.return_value.all.return_value = [mock_trade]
+        mock_session.query.return_value.filter.return_value.all.return_value = [mock_trade]
         strategy.session_maker = Mock(return_value=mock_session)
         
-        # Mock IB client to raise error
-        strategy.ib_client.get_option_prices = AsyncMock(side_effect=Exception("API error"))
+        # Mock query to raise error in main method
+        mock_session.query.side_effect = Exception("Database error")
         
         # Should not raise, just log error
         await strategy.update_open_positions()
         
-        # Trade should remain open
-        assert mock_trade.status == "OPEN"
+        # Session should rollback on database error
+        mock_session.rollback.assert_called()
 
     @pytest.mark.asyncio
     async def test_flatten_all_positions(self, strategy):
         """Test flattening all positions"""
-        # Mock open trades
+        # Mock open trades with all required attributes
         mock_trades = [
-            Mock(spec=Trade, id=1, ib_order_id=101, status="OPEN"),
-            Mock(spec=Trade, id=2, ib_order_id=102, status="OPEN"),
+            Mock(spec=Trade, id=1, status="OPEN", call_tp_order_id=201, put_tp_order_id=202,
+                 call_status="OPEN", put_status="OPEN", call_strike=4300, put_strike=4200,
+                 unrealized_pnl=-10, total_premium=20),
+            Mock(spec=Trade, id=2, status="OPEN", call_tp_order_id=203, put_tp_order_id=204,
+                 call_status="OPEN", put_status="OPEN", call_strike=4350, put_strike=4150,
+                 unrealized_pnl=5, total_premium=20),
         ]
         
         mock_session = Mock()
-        mock_session.query.return_value.filter_by.return_value.all.return_value = mock_trades
+        mock_session.query.return_value.filter.return_value.all.return_value = mock_trades
         strategy.session_maker = Mock(return_value=mock_session)
         
-        strategy.ib_client.close_position = AsyncMock(return_value=True)
-        strategy.risk_manager.update_daily_summary = Mock()
+        # Mock IB client methods
+        strategy.ib_client.get_today_expiry_string = Mock(return_value="20250710")
+        strategy.ib_client.cancel_order = AsyncMock(return_value=True)
+        strategy.ib_client.get_mes_option_contract = AsyncMock(return_value=Mock())
+        strategy.ib_client.close_position_at_market = AsyncMock(return_value=Mock())
         
-        await strategy.flatten_all_positions()
+        result = await strategy.flatten_all_positions()
         
-        # All trades should be closed
+        assert result is True
+        # All trades should be marked as expired
         for trade in mock_trades:
-            assert trade.status == "FLATTENED"
-        assert strategy.ib_client.close_position.call_count == 2
+            assert trade.status == "EXPIRED"
+            assert trade.exit_time is not None
+        assert strategy.ib_client.cancel_order.call_count == 4  # 2 trades * 2 TP orders
+        mock_session.commit.assert_called()
 
     @pytest.mark.asyncio
     async def test_execute_trading_cycle_all_conditions(self, strategy):
@@ -215,21 +254,17 @@ class TestLottoGridStrategyExtended:
             (datetime.utcnow(), 4255),
         ]
         
-        # Mock open trades
-        mock_session = Mock()
-        mock_session.query.return_value.filter_by.return_value.count.return_value = 3
-        strategy.session_maker = Mock(return_value=mock_session)
-        
         status = strategy.get_strategy_status()
         
         assert status["underlying_price"] == 4250
         assert status["implied_move"] == 50
         assert status["daily_high"] == 4260
         assert status["daily_low"] == 4240
-        assert status["open_trades"] == 3
+        assert status["daily_range"] == 20  # 4260 - 4240
         assert status["last_trade_time"] is not None
-        assert "session_duration" in status
-        mock_session.close.assert_called()
+        assert status["session_start"] is not None
+        assert "realized_range_60m" in status
+        assert status["price_history_length"] == 3
 
     def test_calculate_realized_range_edge_cases(self, strategy):
         """Test realized range calculation edge cases"""

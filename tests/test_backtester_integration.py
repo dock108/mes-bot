@@ -75,8 +75,9 @@ class TestBacktesterIntegration:
 
         assert 0.05 <= volatility <= 2.0
 
+    @pytest.mark.asyncio
     @patch("app.backtester.VIXProvider")
-    def test_run_backtest_with_vix_integration(self, mock_vix_class, backtester):
+    async def test_run_backtest_with_vix_integration(self, mock_vix_class, backtester):
         """Test full backtest run with VIX integration"""
         # Mock VIX provider
         mock_vix_instance = Mock()
@@ -96,8 +97,8 @@ class TestBacktesterIntegration:
             }, index=dates)
             mock_fetch.return_value = mock_data
 
-            # Run backtest
-            results = backtester.run_backtest(
+            # Run backtest (await async method)
+            results = await backtester.run_backtest(
                 start_date=date(2025, 7, 10),
                 end_date=date(2025, 7, 10),
                 initial_capital=5000
@@ -111,7 +112,8 @@ class TestBacktesterIntegration:
             assert "final_capital" in results
             assert "total_return" in results
 
-    def test_run_backtest_without_vix_provider(self, backtester):
+    @pytest.mark.asyncio
+    async def test_run_backtest_without_vix_provider(self, backtester):
         """Test backtest continues without VIX when provider fails"""
         # Mock VIXProvider to raise error on init
         with patch("app.backtester.VIXProvider", side_effect=Exception("No API key")):
@@ -127,8 +129,8 @@ class TestBacktesterIntegration:
                 }, index=dates)
                 mock_fetch.return_value = mock_data
 
-                # Should still run without VIX
-                results = backtester.run_backtest(
+                # Should still run without VIX (await async method)
+                results = await backtester.run_backtest(
                     start_date=date(2025, 7, 10),
                     end_date=date(2025, 7, 10),
                     initial_capital=5000
