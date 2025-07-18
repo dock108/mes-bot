@@ -251,6 +251,11 @@ def setup_structured_logging():
         "%(asctime)s - %(name)s - %(levelname)s - [%(correlation_id)s] - %(message)s"
     )
 
+    # Ensure log directory exists
+    import os
+
+    os.makedirs(config.logging.log_dir, exist_ok=True)
+
     # Create file handler with structured logging
     file_handler = logging.FileHandler(f"{config.logging.log_dir}/{config.logging.bot_log_file}")
     file_handler.setFormatter(structured_formatter)
