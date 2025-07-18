@@ -8,15 +8,17 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
 
 from app.config import config
+from app.logging_service import get_logger, with_correlation_id
 from app.market_indicators import MarketFeatures, MarketIndicatorEngine
+from app.ml_ensemble import MLEnsembleImplementation
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class DecisionConfidence(Enum):
@@ -319,64 +321,88 @@ class VolatilityBasedModel(BaseDecisionModel):
 
 
 class MLEnsembleModel(BaseDecisionModel):
-    """Machine Learning ensemble model (placeholder for future implementation)"""
+    """Machine Learning ensemble model with actual implementation"""
 
-    def __init__(self):
+    def __init__(self, database_url: str):
         super().__init__("MLEnsembleModel")
-        self.models = {}  # Will contain trained ML models
-        self.feature_importance = {}
-        self.prediction_cache = {}
+        self.ml_implementation = MLEnsembleImplementation(database_url)
+        self.last_prediction_cache = {}
 
     async def predict_entry_signal(
         self, features: MarketFeatures
     ) -> Tuple[float, Dict[str, float]]:
-        """ML-based entry signal prediction (placeholder)"""
-        # For now, return baseline prediction with some ML-like adjustments
-        baseline_model = VolatilityBasedModel()
-        signal, importance = await baseline_model.predict_entry_signal(features)
+        """ML-based entry signal prediction using trained models"""
+        try:
+            # Get ML ensemble prediction
+            signal, importance = await self.ml_implementation.predict_entry_signal(features)
 
-        # Add some ML-like adjustments based on feature interactions
-        ml_adjustment = self._calculate_ml_adjustment(features)
-        adjusted_signal = signal * (1 + ml_adjustment * 0.2)
+            # Cache the prediction
+            self.last_prediction_cache["entry"] = {
+                "signal": signal,
+                "importance": importance,
+                "timestamp": datetime.utcnow(),
+            }
 
-        return min(1.0, max(0.0, adjusted_signal)), importance
+            return signal, importance
+
+        except Exception as e:
+            logger.error(f"Error in ML entry prediction, falling back to baseline: {e}")
+            # Fallback to volatility-based model
+            baseline_model = VolatilityBasedModel()
+            return await baseline_model.predict_entry_signal(features)
 
     async def predict_exit_signal(
         self, features: MarketFeatures, trade_info: Dict
     ) -> Tuple[float, Dict[str, float]]:
-        """ML-based exit signal prediction (placeholder)"""
-        baseline_model = VolatilityBasedModel()
-        return await baseline_model.predict_exit_signal(features, trade_info)
+        """ML-based exit signal prediction using trained models"""
+        try:
+            # Get ML ensemble prediction
+            signal, importance = await self.ml_implementation.predict_exit_signal(
+                features, trade_info
+            )
+
+            # Cache the prediction
+            self.last_prediction_cache["exit"] = {
+                "signal": signal,
+                "importance": importance,
+                "timestamp": datetime.utcnow(),
+            }
+
+            return signal, importance
+
+        except Exception as e:
+            logger.error(f"Error in ML exit prediction, falling back to baseline: {e}")
+            # Fallback to volatility-based model
+            baseline_model = VolatilityBasedModel()
+            return await baseline_model.predict_exit_signal(features, trade_info)
 
     async def optimize_strikes(
         self, features: MarketFeatures, current_price: float, implied_move: float
     ) -> Tuple[float, float]:
-        """ML-optimized strike selection (placeholder)"""
-        baseline_model = VolatilityBasedModel()
-        return await baseline_model.optimize_strikes(features, current_price, implied_move)
+        """ML-optimized strike selection"""
+        try:
+            return await self.ml_implementation.optimize_strikes(
+                features, current_price, implied_move
+            )
+        except Exception as e:
+            logger.error(f"Error in ML strike optimization, falling back to baseline: {e}")
+            baseline_model = VolatilityBasedModel()
+            return await baseline_model.optimize_strikes(features, current_price, implied_move)
 
-    def _calculate_ml_adjustment(self, features: MarketFeatures) -> float:
-        """Calculate ML-based adjustment factor"""
-        # Placeholder for complex feature interactions
-        adjustment = 0.0
-
-        # Feature interaction example: volatility regime + technical indicators
-        if features.iv_rank < 30 and features.rsi_30m > 50:
-            adjustment += 0.1
-
-        # Time-volatility interaction
-        if features.time_of_day > 14 and features.realized_vol_15m < features.atm_iv * 0.5:
-            adjustment += 0.15
-
-        return adjustment
+    def get_model_status(self) -> Dict[str, Any]:
+        """Get ML model status"""
+        return self.ml_implementation.get_model_status()
 
 
 class DecisionEngine:
     """Main decision engine orchestrating multiple models"""
 
-    def __init__(self):
+    def __init__(self, database_url: str = config.database.url):
         self.indicator_engine = MarketIndicatorEngine()
-        self.models = {"volatility_based": VolatilityBasedModel(), "ml_ensemble": MLEnsembleModel()}
+        self.models = {
+            "volatility_based": VolatilityBasedModel(),
+            "ml_ensemble": MLEnsembleModel(database_url),
+        }
 
         self.model_weights = {
             "volatility_based": 0.7,  # Higher weight for proven model initially
@@ -408,10 +434,19 @@ class DecisionEngine:
                 vix_level, timestamp or datetime.utcnow()
             )
 
+    @with_correlation_id()
     async def generate_entry_signal(
         self, current_price: float, implied_move: float, vix_level: Optional[float] = None
     ) -> TradingSignal:
         """Generate comprehensive entry signal using all models"""
+        logger.info(
+            "Generating entry signal",
+            decision_type="entry",
+            market_price=current_price,
+            market_implied_move=implied_move,
+            market_vix=vix_level,
+        )
+
         # Calculate all market features
         features = self.indicator_engine.calculate_all_features(
             current_price, implied_move, vix_level
@@ -426,8 +461,11 @@ class DecisionEngine:
                 signal, importance = await model.predict_entry_signal(features)
                 model_predictions[model_name] = signal
                 model_importance[model_name] = importance
+                logger.ml_prediction(f"Model {model_name} prediction complete", model_name, signal)
             except Exception as e:
-                logger.error(f"Error in {model_name} prediction: {e}")
+                logger.error(
+                    f"Error in {model_name} prediction: {e}", ml_model=model_name, ml_error=str(e)
+                )
                 model_predictions[model_name] = 0.0
                 model_importance[model_name] = {}
 
@@ -440,7 +478,7 @@ class DecisionEngine:
         prediction_values = list(model_predictions.values())
         if len(prediction_values) > 1:
             prediction_std = np.std(prediction_values)
-            confidence = max(0.1, 1.0 - prediction_std * 2)  # Lower std = higher confidence
+            confidence = max(0.1, 1.0 - float(prediction_std * 2))  # Lower std = higher confidence
         else:
             confidence = ensemble_signal
 
@@ -455,6 +493,15 @@ class DecisionEngine:
         else:
             action = "HOLD"
 
+        logger.trade_decision(
+            "Entry decision generated",
+            action,
+            confidence,
+            decision_ensemble_signal=ensemble_signal,
+            decision_models=model_predictions,
+            decision_reasoning=reasoning[:3] if reasoning else [],
+        )
+
         # Optimize strike selection
         optimal_strikes = None
         if action == "ENTER":
@@ -464,8 +511,11 @@ class DecisionEngine:
                 optimal_strikes = await best_model.optimize_strikes(
                     features, current_price, implied_move
                 )
+                logger.info("Strike optimization complete", decision_strikes=optimal_strikes)
             except Exception as e:
-                logger.error(f"Error optimizing strikes: {e}")
+                logger.error(
+                    f"Error optimizing strikes: {e}", decision_error="strike_optimization_failed"
+                )
 
         # Calculate position size multiplier based on confidence
         position_size_multiplier = min(1.5, max(0.5, confidence * 1.5))

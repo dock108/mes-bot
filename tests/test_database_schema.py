@@ -407,6 +407,7 @@ class TestMarketFeaturesModel:
             vix_term_structure=0.025,
             market_correlation=0.75,
             volume_profile=1.15,
+            market_regime="normal",
             # Time features
             time_of_day=14.0,
             day_of_week=3.0,

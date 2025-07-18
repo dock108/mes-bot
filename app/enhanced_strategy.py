@@ -34,7 +34,7 @@ class EnhancedLottoGridStrategy(LottoGridStrategy):
         super().__init__(ib_client, risk_manager, database_url)
 
         # Enhanced components
-        self.decision_engine = DecisionEngine()
+        self.decision_engine = DecisionEngine(database_url)
         self.feature_collector = FeatureCollector(database_url)
         self.model_trainer = ModelTrainer(database_url)
         self.model_scheduler = ModelScheduler(self.model_trainer)
@@ -240,7 +240,7 @@ class EnhancedLottoGridStrategy(LottoGridStrategy):
                 return None
 
             # Place the strangle with enhanced parameters
-            strangle_result = await self.ib_client.place_strangle(
+            strangle_result = await self.ib_client.place_strangle_legacy(
                 self.underlying_price,
                 call_strike,
                 put_strike,

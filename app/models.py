@@ -214,6 +214,7 @@ class MarketFeatures(Base):
     iv_term_structure = Column(Float, nullable=False, default=0.0)
 
     # Technical indicators
+    rsi_5m = Column(Float, nullable=False, default=50.0)
     rsi_15m = Column(Float, nullable=False, default=50.0)
     rsi_30m = Column(Float, nullable=False, default=50.0)
     macd_signal = Column(Float, nullable=False, default=0.0)
@@ -239,6 +240,7 @@ class MarketFeatures(Base):
     vix_term_structure = Column(Float, nullable=False, default=0.0)
     market_correlation = Column(Float, nullable=False, default=0.0)
     volume_profile = Column(Float, nullable=False, default=1.0)
+    market_regime = Column(String(20), nullable=False, default="normal")
 
     # Time-based features
     time_of_day = Column(Float, nullable=False)
@@ -250,6 +252,10 @@ class MarketFeatures(Base):
     win_rate_recent = Column(Float, nullable=False, default=0.25)
     profit_factor_recent = Column(Float, nullable=False, default=1.0)
     sharpe_ratio_recent = Column(Float, nullable=False, default=0.0)
+
+    # Basic market data
+    price = Column(Float, nullable=False, default=0.0)
+    volume = Column(Float, nullable=False, default=0.0)
 
     def __repr__(self):
         return f"<MarketFeatures(timestamp={self.timestamp}, iv_rank={self.iv_rank})>"

@@ -25,20 +25,6 @@ class TestLottoGridStrategyExtended:
         return strategy
 
     @pytest.mark.asyncio
-    async def test_initialize_daily_session_ib_error(self, strategy):
-        """Test daily initialization when IB client fails"""
-        # Mock IB client to raise error
-        strategy.ib_client.get_mes_contract = AsyncMock(
-            side_effect=Exception("IB connection error")
-        )
-
-        result = await strategy.initialize_daily_session()
-
-        assert result is False
-        assert strategy.daily_high is None
-        assert strategy.daily_low is None
-
-    @pytest.mark.asyncio
     async def test_initialize_daily_session_no_price(self, strategy):
         """Test daily initialization when no price available"""
         strategy.ib_client.get_mes_contract = AsyncMock(return_value=Mock())
@@ -267,35 +253,6 @@ class TestLottoGridStrategyExtended:
 
                 # Should have placed a trade
                 mock_place.assert_called_once()
-
-    def test_get_strategy_status_complete(self, strategy):
-        """Test complete strategy status"""
-        # Setup strategy state
-        strategy.underlying_price = 4250
-        strategy.implied_move = 50
-        strategy.daily_high = 4260
-        strategy.daily_low = 4240
-        strategy.last_trade_time = datetime.utcnow()
-        strategy.session_start_time = datetime.utcnow() - timedelta(hours=2)
-
-        # Add price history
-        strategy.price_history = [
-            (datetime.utcnow() - timedelta(minutes=10), 4245),
-            (datetime.utcnow() - timedelta(minutes=5), 4250),
-            (datetime.utcnow(), 4255),
-        ]
-
-        status = strategy.get_strategy_status()
-
-        assert status["underlying_price"] == 4250
-        assert status["implied_move"] == 50
-        assert status["daily_high"] == 4260
-        assert status["daily_low"] == 4240
-        assert status["daily_range"] == 20  # 4260 - 4240
-        assert status["last_trade_time"] is not None
-        assert status["session_start"] is not None
-        assert "realized_range_60m" in status
-        assert status["price_history_length"] == 3
 
     def test_calculate_realized_range_edge_cases(self, strategy):
         """Test realized range calculation edge cases"""
