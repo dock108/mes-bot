@@ -35,4 +35,5 @@ streamlit>=1.28.0
 
 # Type stubs
 types-pytz>=2023.3.0
+types-requests>=2.31.0
 yfinance>=0.2.28
