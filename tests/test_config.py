@@ -7,7 +7,7 @@ from unittest.mock import patch
 import pytest
 import pytz
 
-from app.config import IBConfig, TradingConfig, MarketHours, DatabaseConfig, config
+from app.config import DatabaseConfig, IBConfig, MarketHours, TradingConfig, config
 
 
 class TestIBConfig:

@@ -14,17 +14,9 @@ from sqlalchemy.orm import Session
 
 from app.config import config
 from app.market_indicators import MarketFeatures, MarketIndicatorEngine
-from app.models import (
-    DecisionHistory,
-    MarketData,
-)
+from app.models import DecisionHistory, MarketData
 from app.models import MarketFeatures as MarketFeaturesModel
-from app.models import (
-    MLPrediction,
-    PerformanceMetrics,
-    Trade,
-    get_session_maker,
-)
+from app.models import MLPrediction, PerformanceMetrics, Trade, get_session_maker
 
 logger = logging.getLogger(__name__)
 

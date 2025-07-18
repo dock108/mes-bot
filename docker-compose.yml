@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   # Interactive Brokers Gateway
@@ -11,9 +11,9 @@ services:
       TRADING_MODE: "${TRADE_MODE:-paper}"
       VNC_SERVER_PASSWORD: "ibgateway"
     ports:
-      - "7497:7497"  # IB API port (paper)
-      - "7496:7496"  # IB API port (live)
-      - "5900:5900"  # VNC port for remote desktop access
+      - "7497:7497" # IB API port (paper)
+      - "7496:7496" # IB API port (live)
+      - "5900:5900" # VNC port for remote desktop access
     volumes:
       - ib_settings:/root/Jts
     restart: unless-stopped
@@ -45,7 +45,13 @@ services:
     restart: unless-stopped
     command: ["poetry", "run", "python", "-m", "app.bot"]
     healthcheck:
-      test: ["CMD", "python", "-c", "import sqlite3; sqlite3.connect('/app/data/lotto_grid.db').execute('SELECT 1')"]
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import sqlite3; sqlite3.connect('/app/data/lotto_grid.db').execute('SELECT 1')",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -63,12 +69,21 @@ services:
     ports:
       - "8501:8501"
     volumes:
-      - ./data:/app/data:ro  # Read-only access to data
-      - ./logs:/app/logs:ro  # Read-only access to logs
+      - ./data:/app/data:ro # Read-only access to data
+      - ./logs:/app/logs:ro # Read-only access to logs
     depends_on:
       - bot-engine
     restart: unless-stopped
-    command: ["poetry", "run", "streamlit", "run", "app/ui.py", "--server.port=8501", "--server.address=0.0.0.0"]
+    command:
+      [
+        "poetry",
+        "run",
+        "streamlit",
+        "run",
+        "app/ui.py",
+        "--server.port=8501",
+        "--server.address=0.0.0.0",
+      ]
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8501/healthz"]
       interval: 30s

@@ -1,6 +1,7 @@
 # MES 0DTE Lotto-Grid Options Bot - User Decision Guide
 
 ## Table of Contents
+
 1. [Quick Start](#quick-start)
 2. [Prerequisites & Setup](#prerequisites--setup)
 3. [Critical Configuration Decisions](#critical-configuration-decisions)
@@ -16,6 +17,7 @@
 ## Quick Start
 
 **New to 0DTE options trading?** Start here with conservative settings:
+
 ```bash
 # 1. Install and setup
 make dev-setup
@@ -41,6 +43,7 @@ make run-ui  # In another terminal
 ## Prerequisites & Setup
 
 ### System Requirements
+
 - **Python 3.10+** (with Poetry package manager)
 - **Interactive Brokers Account** (paper or live)
 - **IB Gateway or TWS** (Trader Workstation)
@@ -50,12 +53,14 @@ make run-ui  # In another terminal
 ### Interactive Brokers Setup
 
 #### 1. Account Requirements
+
 - ✅ **Options Trading Permissions**: Level 2 minimum for spreads
 - ✅ **Futures Options**: MES options trading enabled
 - ✅ **API Access**: Enable in Account Management
 - ✅ **Market Data**: Real-time ES/MES data subscription
 
 #### 2. IB Gateway/TWS Configuration
+
 ```
 API Settings:
 ├── Enable ActiveX and Socket Clients: ✅
@@ -66,12 +71,14 @@ API Settings:
 ```
 
 #### 3. Market Data Subscriptions Needed
+
 - **US Equity and Options Add-On Streaming Bundle**
 - **US Futures and Futures Options Bundle**
 
 ### Installation
 
 #### Option 1: Standard Setup
+
 ```bash
 # Clone the repository
 git clone <repository-url>
@@ -87,6 +94,7 @@ make dev-setup
 ```
 
 #### Option 2: Docker Setup
+
 ```bash
 # Setup environment
 make setup-env
@@ -103,16 +111,19 @@ make docker-up
 ### 📊 Risk Management Parameters
 
 #### Starting Capital (`START_CASH`)
+
 - **Conservative**: $5,000 - $10,000
-- **Moderate**: $10,000 - $25,000  
+- **Moderate**: $10,000 - $25,000
 - **Aggressive**: $25,000+
 
 **Decision Guide:**
+
 - Start with amount you can afford to lose completely
 - 0DTE options can move fast - expect volatility
 - Consider this "risk capital" separate from main portfolio
 
 #### Maximum Drawdown (`MAX_DRAW`)
+
 ```
 Conservative: 10-15% of starting capital
 Moderate:     15-20% of starting capital
@@ -127,6 +138,7 @@ $25,000 account → $3,750-5,000 max drawdown
 **Key Decision**: Bot stops trading when this level is hit
 
 #### Maximum Open Trades (`MAX_OPEN_TRADES`)
+
 ```
 Beginner:     5-10 positions
 Intermediate: 10-15 positions
@@ -134,6 +146,7 @@ Advanced:     15-20 positions
 ```
 
 **Consider:**
+
 - More positions = more diversification but harder to manage
 - Each position requires margin (typically $400-600 per MES strangle)
 - Risk increases with more concurrent positions
@@ -141,18 +154,21 @@ Advanced:     15-20 positions
 ### ⚡ Strategy Parameters
 
 #### Profit Target (`PROFIT_TARGET_MULTIPLIER`)
+
 ```
 Conservative: 3.0x (300% profit)
-Standard:     4.0x (400% profit) 
+Standard:     4.0x (400% profit)
 Aggressive:   5.0x (500% profit)
 ```
 
 **Trade-off Analysis:**
+
 - Higher targets = more profit per winner but lower win rate
 - Lower targets = higher win rate but less profit per winner
 - 4.0x is historically optimal for 0DTE strategies
 
 #### Strike Selection (`IMPLIED_MOVE_MULTIPLIER_1` & `_2`)
+
 ```
 Strike Distance = Implied Move × Multiplier
 
@@ -162,10 +178,12 @@ Aggressive:   1.0x and 1.25x (closer ATM, riskier)
 ```
 
 **Decision Impact:**
+
 - Further strikes = lower premium, higher win rate, lower max profit
 - Closer strikes = higher premium, lower win rate, higher max profit
 
 #### Volatility Threshold (`VOLATILITY_THRESHOLD`)
+
 ```
 Conservative: 0.5 (trade when realized vol < 50% of implied)
 Standard:     0.67 (trade when realized vol < 67% of implied)
@@ -173,12 +191,14 @@ Aggressive:   0.8 (trade when realized vol < 80% of implied)
 ```
 
 **Strategy Logic:**
+
 - Lower threshold = fewer but higher-quality trade signals
 - Higher threshold = more trades but potentially lower edge
 
 ### 📅 Timing Parameters
 
 #### Market Hours
+
 ```
 MARKET_OPEN_HOUR=9      # 9:30 AM ET (after futures open)
 MARKET_OPEN_MINUTE=30
@@ -189,11 +209,13 @@ FLATTEN_MINUTE=58
 ```
 
 **Decision Considerations:**
+
 - **Opening Time**: Avoid first 30 minutes (high volatility)
 - **Closing Time**: Close positions before 4PM expiry
 - **Flatten Time**: Critical - must exit before expiration
 
 #### Trade Frequency (`MIN_TIME_BETWEEN_TRADES`)
+
 ```
 Conservative: 60 minutes (slower, quality over quantity)
 Standard:     30 minutes (balanced)
@@ -207,6 +229,7 @@ Aggressive:   15 minutes (higher frequency)
 ### Phase 1: Setup & Validation (Day 1)
 
 #### Step 1: Environment Configuration
+
 ```bash
 # Copy and edit configuration
 make setup-env
@@ -214,6 +237,7 @@ nano .env  # Edit with your settings
 ```
 
 **Critical Settings to Configure:**
+
 ```bash
 # Start conservative
 TRADE_MODE=paper
@@ -228,6 +252,7 @@ IB_PASSWORD=your_paper_trading_password
 ```
 
 #### Step 2: Validate Setup
+
 ```bash
 # Check configuration
 make validate-env
@@ -240,6 +265,7 @@ make health-check
 ```
 
 #### Step 3: Run Initial Backtest
+
 ```bash
 # Run 30-day backtest with your settings
 make run-backtest
@@ -253,12 +279,14 @@ make run-backtest
 ### Phase 2: Paper Trading (Weeks 1-2)
 
 #### Step 1: Start IB Gateway
+
 1. Open IB Gateway or TWS
 2. Login to paper trading account
 3. Verify API is enabled (port 7497)
 4. Ensure MES market data is active
 
 #### Step 2: Launch Bot
+
 ```bash
 # Terminal 1: Start trading bot
 make run-bot
@@ -268,7 +296,8 @@ make run-ui
 ```
 
 #### Step 3: Monitor First Day
-1. **Dashboard**: Open http://localhost:8501
+
+1. **Dashboard**: Open <http://localhost:8501>
 2. **Watch for**:
    - Bot connects to IB successfully
    - Implied move calculation works
@@ -276,6 +305,7 @@ make run-ui
    - Positions open and close correctly
 
 #### Step 4: Daily Review Process
+
 1. **End of Day**: Review dashboard performance tab
 2. **Check**:
    - Total P&L for the day
@@ -287,6 +317,7 @@ make run-ui
 ### Phase 3: Optimization (Weeks 3-4)
 
 #### Performance Analysis
+
 ```bash
 # After 1-2 weeks, analyze results
 # Access Performance tab in dashboard
@@ -302,6 +333,7 @@ Key Metrics to Track:
 #### Parameter Tuning Decisions
 
 **If Win Rate Too Low (<15%)**
+
 ```bash
 # Make strikes further OTM
 IMPLIED_MOVE_MULTIPLIER_1=1.5  # from 1.25
@@ -312,6 +344,7 @@ PROFIT_TARGET_MULTIPLIER=3.0   # from 4.0
 ```
 
 **If Win Rate Too High (>40%)**
+
 ```bash
 # Strategy may be too conservative
 IMPLIED_MOVE_MULTIPLIER_1=1.0  # from 1.25
@@ -322,6 +355,7 @@ PROFIT_TARGET_MULTIPLIER=5.0   # from 4.0
 ```
 
 **If Too Many/Few Trades**
+
 ```bash
 # Adjust volatility threshold
 VOLATILITY_THRESHOLD=0.5   # Fewer trades (from 0.67)
@@ -335,6 +369,7 @@ MIN_TIME_BETWEEN_TRADES=15 # Faster (from 30)
 ### Phase 4: Live Trading Decision
 
 #### Prerequisites for Going Live
+
 - ✅ **2+ weeks successful paper trading**
 - ✅ **Positive overall P&L in paper**
 - ✅ **Comfortable with strategy behavior**
@@ -342,6 +377,7 @@ MIN_TIME_BETWEEN_TRADES=15 # Faster (from 30)
 - ✅ **Live trading account approved for options**
 
 #### Going Live Checklist
+
 ```bash
 # 1. Update configuration
 TRADE_MODE=live
@@ -366,7 +402,7 @@ MAX_DRAW=<10% of account>      # Be conservative initially
 ```
 Account Size → Max Positions → Risk per Trade
 └── $5,000    → 3-5 trades   → $200-400 per strangle
-└── $10,000   → 5-8 trades   → $400-600 per strangle  
+└── $10,000   → 5-8 trades   → $400-600 per strangle
 └── $25,000   → 8-12 trades  → $600-1000 per strangle
 └── $50,000+  → 12-15 trades → $1000+ per strangle
 ```
@@ -380,7 +416,7 @@ Risk Appetite → Settings Profile
 │   ├── PROFIT_TARGET: 3.0x
 │   ├── STRIKE_DISTANCE: 1.5x, 1.75x
 │   └── VOL_THRESHOLD: 0.5
-├── Moderate  
+├── Moderate
 │   ├── MAX_DRAW: 15% of account
 │   ├── PROFIT_TARGET: 4.0x
 │   ├── STRIKE_DISTANCE: 1.25x, 1.5x
@@ -395,12 +431,14 @@ Risk Appetite → Settings Profile
 ### When to Stop Trading
 
 #### Automatic Stops (Bot Handles)
+
 - Maximum drawdown reached
 - Market hours outside trading window
 - IB connection issues
 - Insufficient margin
 
 #### Manual Stop Considerations
+
 - **Market Conditions**: Unusual volatility events (FOMC, earnings)
 - **Technical Issues**: Repeated errors or connection problems
 - **Performance**: Consistent losses beyond expectations
@@ -409,11 +447,12 @@ Risk Appetite → Settings Profile
 ### When to Adjust Parameters
 
 #### Weekly Review Triggers
+
 ```
 Metric                  Action Needed
 ────────────────────────────────────────
 Win Rate < 10%         → Increase strike distance
-Win Rate > 50%         → Decrease strike distance  
+Win Rate > 50%         → Decrease strike distance
 Avg Loss > 2x Premium → Review position sizing
 Max DD > Target        → Reduce position size
 No trades for days     → Lower vol threshold
@@ -427,6 +466,7 @@ Too many trades/day    → Raise vol threshold
 ### Backtesting Strategy
 
 #### 1. Historical Performance Test
+
 ```bash
 # Test different parameter sets
 make run-backtest
@@ -438,6 +478,7 @@ make run-backtest
 ```
 
 #### 2. Stress Testing
+
 ```bash
 # Edit config for stress test
 MAX_OPEN_TRADES=20        # Test high load
@@ -450,6 +491,7 @@ VOLATILITY_THRESHOLD=0.9  # Test high frequency
 ```
 
 #### 3. Walk-Forward Analysis
+
 - Test on multiple time periods
 - Ensure consistent performance
 - Identify market regime sensitivity
@@ -457,13 +499,15 @@ VOLATILITY_THRESHOLD=0.9  # Test high frequency
 ### Paper Trading Validation
 
 #### Week 1 Checklist
+
 - [ ] Bot connects reliably to IB
 - [ ] Trades execute as expected
 - [ ] Risk management works (stops)
 - [ ] Dashboard shows accurate data
 - [ ] No critical errors in logs
 
-#### Week 2 Checklist  
+#### Week 2 Checklist
+
 - [ ] Performance meets backtested expectations
 - [ ] Drawdown stays within limits
 - [ ] Win rate in expected range (20-30%)
@@ -477,7 +521,9 @@ VOLATILITY_THRESHOLD=0.9  # Test high frequency
 ### Daily Monitoring Routine
 
 #### Morning (Pre-Market)
+
 1. **Check System Health**
+
    ```bash
    make health-check
    ```
@@ -495,15 +541,18 @@ VOLATILITY_THRESHOLD=0.9  # Test high frequency
 #### During Trading Hours
 
 ##### Dashboard Monitoring
+
 Access dashboard at `http://localhost:8501`
 
 **Live Monitor Tab - Check Every 30-60 Minutes:**
+
 - Current open positions
 - P&L progression
 - Bot status indicators
 - Any error messages
 
 **Key Metrics to Watch:**
+
 ```
 Metric                 Normal Range        Action if Outside
 ─────────────────────────────────────────────────────────────
@@ -534,6 +583,7 @@ Open Positions         Within max limit   Check margin usage
 ### Weekly Analysis
 
 #### Performance Tab Review
+
 1. **Return Analysis**
    - Weekly P&L trend
    - Cumulative returns
@@ -550,6 +600,7 @@ Open Positions         Within max limit   Check margin usage
    - Correlation with market moves
 
 #### Parameter Optimization
+
 ```python
 # Weekly review checklist
 Review Frequency: Every Sunday
@@ -572,6 +623,7 @@ Questions to Ask:
 **Profile**: New to options, wants to learn 0DTE strategies
 
 **Recommended Settings:**
+
 ```bash
 TRADE_MODE=paper
 START_CASH=5000
@@ -585,6 +637,7 @@ MIN_TIME_BETWEEN_TRADES=60
 ```
 
 **Timeline:**
+
 - Week 1-2: Paper trade with these settings
 - Week 3-4: If comfortable, increase to 5 max trades
 - Month 2: Consider going live with $2,500 real capital
@@ -595,6 +648,7 @@ MIN_TIME_BETWEEN_TRADES=60
 **Profile**: Familiar with options, wants to automate 0DTE strategies
 
 **Recommended Settings:**
+
 ```bash
 TRADE_MODE=paper  # Still start with paper
 START_CASH=10000
@@ -608,6 +662,7 @@ MIN_TIME_BETWEEN_TRADES=30
 ```
 
 **Timeline:**
+
 - Week 1: Paper trade, focus on automation vs manual differences
 - Week 2: Optimize parameters based on style preferences
 - Week 3-4: Go live with 50% of intended size
@@ -618,6 +673,7 @@ MIN_TIME_BETWEEN_TRADES=30
 **Profile**: Wants maximum trade frequency and automation
 
 **Recommended Settings:**
+
 ```bash
 TRADE_MODE=paper
 START_CASH=25000
@@ -631,6 +687,7 @@ MIN_TIME_BETWEEN_TRADES=15
 ```
 
 **Considerations:**
+
 - Higher system resource requirements
 - More market data costs
 - Increased commission costs
@@ -641,6 +698,7 @@ MIN_TIME_BETWEEN_TRADES=15
 **Profile**: Can't monitor constantly, wants set-and-forget
 
 **Recommended Settings:**
+
 ```bash
 TRADE_MODE=paper
 START_CASH=7500
@@ -654,6 +712,7 @@ MIN_TIME_BETWEEN_TRADES=60
 ```
 
 **Special Considerations:**
+
 - Set lower drawdown limits
 - Use more conservative parameters
 - Check performance daily at minimum
@@ -666,6 +725,7 @@ MIN_TIME_BETWEEN_TRADES=60
 ### Common Issues & Solutions
 
 #### Bot Won't Connect to IB
+
 ```
 Symptoms: "Connection failed" errors
 Solutions:
@@ -677,6 +737,7 @@ Solutions:
 ```
 
 #### No Trades Being Executed
+
 ```
 Symptoms: Bot runs but no positions opened
 Possible Causes:
@@ -694,6 +755,7 @@ Solutions:
 ```
 
 #### Unexpected Losses
+
 ```
 Symptoms: Losses exceed expectations
 Analysis Steps:
@@ -712,6 +774,7 @@ Actions:
 ```
 
 #### Performance Degradation
+
 ```
 Symptoms: Bot was profitable, now losing
 Investigation:
@@ -732,6 +795,7 @@ Response:
 ### Emergency Procedures
 
 #### Emergency Stop
+
 ```bash
 # Stop bot immediately
 pkill -f "python.*bot"
@@ -741,11 +805,13 @@ pkill -f "python.*bot"
 ```
 
 #### Position Management
+
 - **Close All Positions**: Use IB TWS to manually close if needed
 - **Monitor Margin**: Ensure sufficient margin for existing positions
 - **Risk Assessment**: Calculate maximum loss exposure
 
 #### Data Recovery
+
 ```bash
 # Backup current data
 make backup-data
@@ -757,14 +823,16 @@ tar -xzf backups/lotto_grid_backup_YYYYMMDD_HHMMSS.tar.gz
 ### Support Resources
 
 #### Log Files
+
 ```
 Location: ./logs/
 ├── bot_run.log     # Main bot activity
-├── bot_errors.log  # Error messages  
+├── bot_errors.log  # Error messages
 └── ib_messages.log # IB API communication
 ```
 
 #### Health Check
+
 ```bash
 # Comprehensive system check
 make health-check
@@ -776,6 +844,7 @@ make status         # Overall system
 ```
 
 #### Performance Analysis
+
 ```bash
 # Run performance test
 make perf-test
@@ -799,6 +868,7 @@ This bot implements a sophisticated 0DTE options strategy with professional risk
 Remember: 0DTE options trading carries significant risk. Never trade with money you cannot afford to lose, and always start with paper trading to understand the strategy behavior.
 
 **Key Success Factors:**
+
 - Start small and scale gradually
 - Monitor performance daily
 - Adjust parameters based on market conditions

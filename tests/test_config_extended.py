@@ -1,11 +1,12 @@
 """Extended tests for config.py to improve coverage"""
 
 import os
-import pytest
-from unittest.mock import patch
 from datetime import time
+from unittest.mock import patch
 
-from app.config import TradingConfig, MarketHours, IBConfig, Config
+import pytest
+
+from app.config import Config, IBConfig, MarketHours, TradingConfig
 
 
 class TestConfigProperties:

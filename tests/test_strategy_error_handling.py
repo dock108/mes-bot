@@ -1,14 +1,15 @@
 """Tests for strategy.py error handling to improve coverage"""
 
-import pytest
 import asyncio
 from datetime import datetime, timedelta
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
+
+import pytest
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.strategy import LottoGridStrategy
 from app.ib_client import IBClient
 from app.risk_manager import RiskManager
+from app.strategy import LottoGridStrategy
 
 
 class TestStrategyErrorHandling:

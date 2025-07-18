@@ -17,6 +17,7 @@ This bot systematically buys deep out-of-the-money (OTM) same-day strangles on M
 ## 📊 Strategy Logic
 
 ### Core Concept
+
 - **Entry**: Place strangles when realized 60-minute volatility < 67% of implied daily move
 - **Strikes**: Use 1.25x and 1.5x implied move distances from current price
 - **Profit Target**: 400% of premium paid per leg
@@ -24,6 +25,7 @@ This bot systematically buys deep out-of-the-money (OTM) same-day strangles on M
 - **Frequency**: Maximum ~10-12 strangles per day, minimum 30 minutes between trades
 
 ### Risk Controls
+
 - Max $25 premium per strangle
 - Max 15 concurrent open trades
 - Max $750 daily drawdown (15% of $5k account)
@@ -32,6 +34,7 @@ This bot systematically buys deep out-of-the-money (OTM) same-day strangles on M
 ## 🚀 Quick Start
 
 ### Prerequisites
+
 - Interactive Brokers account with API access
 - CME Micro E-mini futures and options market data subscription
 - Python 3.10+ or Docker
@@ -40,18 +43,20 @@ This bot systematically buys deep out-of-the-money (OTM) same-day strangles on M
 ### Local Development (macOS)
 
 1. **Clone and Setup**
+
    ```bash
    git clone https://github.com/your-username/lotto-grid-bot.git
    cd lotto-grid-bot
-   
+
    # Install Poetry
    curl -sSL https://install.python-poetry.org | python3 -
-   
+
    # Install dependencies
    poetry install
    ```
 
 2. **Configure Environment**
+
    ```bash
    cp .env.example .env
    # Edit .env with your IB credentials and preferences
@@ -64,33 +69,36 @@ This bot systematically buys deep out-of-the-money (OTM) same-day strangles on M
    - Set socket port to 7497 (paper) or 7496 (live)
 
 4. **Run the Bot**
+
    ```bash
    # Start trading bot
    poetry run python -m app.bot
-   
+
    # In another terminal, start UI
    poetry run streamlit run app/ui.py
    ```
 
 5. **Access Dashboard**
-   - Open browser to http://localhost:8501
+   - Open browser to <http://localhost:8501>
    - Monitor live trades and performance
 
 ### Docker Deployment
 
 1. **Setup Environment**
+
    ```bash
    cp .env.example .env
    # Configure your IB credentials
    ```
 
 2. **Run with Docker Compose**
+
    ```bash
    docker-compose up -d
    ```
 
 3. **Access Services**
-   - Streamlit UI: http://localhost:8501
+   - Streamlit UI: <http://localhost:8501>
    - IB Gateway VNC: vnc://localhost:5900 (password: ibgateway)
 
 ## 🏗️ Architecture
@@ -137,6 +145,7 @@ This bot systematically buys deep out-of-the-money (OTM) same-day strangles on M
 ### Backtesting
 
 The bot includes a comprehensive backtesting engine that:
+
 - Fetches historical price data from Yahoo Finance
 - Uses Black-Scholes model for synthetic option pricing
 - Simulates exact strategy logic and risk controls
@@ -179,6 +188,7 @@ The bot implements multiple layers of risk control:
 ### Ubuntu Server Setup
 
 1. **Automated Setup**
+
    ```bash
    wget https://raw.githubusercontent.com/your-repo/lotto-grid-bot/main/deploy/setup-ubuntu.sh
    chmod +x setup-ubuntu.sh
@@ -186,23 +196,25 @@ The bot implements multiple layers of risk control:
    ```
 
 2. **Manual Configuration**
+
    ```bash
    # Edit environment
    sudo nano /opt/lotto-grid-bot/.env
-   
+
    # Start services
    sudo systemctl start lotto-grid-bot
    sudo systemctl enable lotto-grid-bot
    ```
 
 3. **Monitor Status**
+
    ```bash
    # Check service status
    sudo systemctl status lotto-grid-bot
-   
+
    # View logs
    sudo journalctl -u lotto-grid-bot -f
-   
+
    # Monitor containers
    sudo docker-compose ps
    ```
@@ -210,6 +222,7 @@ The bot implements multiple layers of risk control:
 ### Systemd Integration
 
 The bot runs as a systemd service with:
+
 - Automatic startup on boot
 - Restart on failure
 - Resource limits (CPU/Memory)
@@ -231,6 +244,7 @@ The bot runs as a systemd service with:
 ## 🧪 Testing
 
 ### Run Tests
+
 ```bash
 # Install test dependencies
 poetry install --with dev
@@ -248,6 +262,7 @@ poetry run pytest tests/test_strategy.py -v
 ### Test Coverage
 
 The test suite covers:
+
 - Strategy logic and signal generation
 - Risk management rules and limits
 - Backtesting engine accuracy
@@ -257,6 +272,7 @@ The test suite covers:
 ## 📊 Example Performance
 
 ### Sample Backtest Results
+
 ```
 Period: 2024-01-01 to 2024-03-31 (60 trading days)
 Initial Capital: $5,000

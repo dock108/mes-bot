@@ -45,11 +45,11 @@ export LOG_LEVEL="INFO"
 run_test_suite() {
     local test_file=$1
     local description=$2
-    
+
     echo ""
     echo "🧪 Running $description..."
     echo "----------------------------------------"
-    
+
     if pytest tests/uat/$test_file -v --tb=short; then
         echo "✅ $description passed"
     else
@@ -63,7 +63,7 @@ run_all_tests() {
     echo ""
     echo "🧪 Running All UAT Tests..."
     echo "----------------------------------------"
-    
+
     if pytest tests/uat/ -v --tb=short --maxfail=5; then
         echo "✅ All UAT tests passed"
     else
@@ -77,7 +77,7 @@ run_smoke_tests() {
     echo ""
     echo "🧪 Running Smoke Tests..."
     echo "----------------------------------------"
-    
+
     # Run basic navigation and UI tests
     if pytest tests/uat/test_dashboard_ui.py::TestDashboardUI::test_dashboard_loads_successfully \
              tests/uat/test_dashboard_ui.py::TestDashboardUI::test_navigation_between_sections \
@@ -142,7 +142,7 @@ echo "======================"
 if [ -d "test-results" ]; then
     screenshot_count=$(find test-results/screenshots -name "*.png" 2>/dev/null | wc -l)
     echo "📸 Screenshots taken: $screenshot_count"
-    
+
     if [ $screenshot_count -gt 0 ]; then
         echo "🔍 Screenshots location: test-results/screenshots/"
     fi

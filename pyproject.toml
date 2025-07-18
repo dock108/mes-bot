@@ -115,7 +115,7 @@ plugins = ["sqlalchemy.ext.mypy.plugin"]
 # Be more permissive for common patterns
 disable_error_code = [
     "var-annotated",
-    "assignment", 
+    "assignment",
     "arg-type",
     "return-value",
     "operator",

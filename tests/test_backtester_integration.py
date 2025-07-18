@@ -1,11 +1,12 @@
 """Integration tests for backtester with new data sources"""
 
-import pytest
 import asyncio
 from datetime import date, timedelta
-from unittest.mock import Mock, patch, AsyncMock
-import pandas as pd
+from unittest.mock import AsyncMock, Mock, patch
+
 import numpy as np
+import pandas as pd
+import pytest
 
 from app.backtester import LottoGridBacktester
 from app.data_providers.vix_provider import VIXProvider

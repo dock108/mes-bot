@@ -15,16 +15,9 @@ from sqlalchemy.orm import sessionmaker
 
 from app.feature_pipeline import DataQualityMonitor, FeatureCollector, FeatureEngineer
 from app.market_indicators import MarketFeatures
-from app.models import (
-    Base,
-    DecisionHistory,
-    MarketData,
-)
+from app.models import Base, DecisionHistory, MarketData
 from app.models import MarketFeatures as MarketFeaturesModel
-from app.models import (
-    Trade,
-    get_session_maker,
-)
+from app.models import Trade, get_session_maker
 
 
 class TestFeatureCollector:

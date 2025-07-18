@@ -102,10 +102,10 @@ async def run_sample():
     backtester = LottoGridBacktester('sqlite:///./data/lotto_grid.db')
     end_date = date.today()
     start_date = end_date - timedelta(days=30)
-    
+
     print(f'Running backtest from {start_date} to {end_date}...')
     results = await backtester.run_backtest(start_date, end_date, 5000.0)
-    
+
     print(f'Results:')
     print(f'  Total Return: {results[\"total_return\"]:.2%}')
     print(f'  Win Rate: {results[\"win_rate\"]:.1%}')
@@ -248,13 +248,13 @@ from datetime import date, timedelta
 async def perf_test():
     backtester = LottoGridBacktester('sqlite:///:memory:')
     start_time = time.time()
-    
+
     # Test with 7 days of data
     end_date = date.today()
     start_date = end_date - timedelta(days=7)
-    
+
     results = await backtester.run_backtest(start_date, end_date, 5000.0)
-    
+
     elapsed = time.time() - start_time
     print(f'Backtest completed in {elapsed:.2f} seconds')
     print(f'Processed {results[\"total_trades\"]} trades')

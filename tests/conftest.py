@@ -3,10 +3,11 @@ Pytest configuration and fixtures for MES-Bot tests
 """
 
 import os
-import pytest
-import tempfile
 import shutil
+import tempfile
 from pathlib import Path
+
+import pytest
 
 
 @pytest.fixture(scope="function")

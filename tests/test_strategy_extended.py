@@ -1,14 +1,15 @@
 """Extended tests for strategy.py to improve coverage"""
 
-import pytest
 import asyncio
 from datetime import datetime, timedelta
-from unittest.mock import Mock, patch, AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
-from app.strategy import LottoGridStrategy
+import pytest
+
 from app.ib_client import IBClient
-from app.risk_manager import RiskManager
 from app.models import Trade
+from app.risk_manager import RiskManager
+from app.strategy import LottoGridStrategy
 
 
 class TestLottoGridStrategyExtended:

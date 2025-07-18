@@ -1,10 +1,11 @@
 """Tests for VIX data provider"""
 
 import os
-import pytest
 from datetime import date, datetime, timedelta
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import MagicMock, Mock, patch
+
 import pandas as pd
+import pytest
 import requests
 
 from app.data_providers.vix_provider import VIXProvider

@@ -1,13 +1,14 @@
 """Tests for backtester.py edge cases to improve coverage"""
 
-import pytest
 from datetime import date, datetime, timedelta
 from unittest.mock import Mock, patch
-import pandas as pd
+
 import numpy as np
+import pandas as pd
+import pytest
 import yfinance as yf
 
-from app.backtester import LottoGridBacktester, BlackScholesCalculator
+from app.backtester import BlackScholesCalculator, LottoGridBacktester
 from app.data_providers.vix_provider import VIXProvider
 
 
