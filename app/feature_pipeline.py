@@ -171,15 +171,16 @@ class FeatureCollector:
         implied_move: float,
         vix_level: Optional[float] = None,
         timestamp: Optional[datetime] = None,
+        option_chain_data: Optional[Dict] = None,
     ) -> Optional[int]:
         """Calculate and store market features"""
         if timestamp is None:
             timestamp = datetime.utcnow()
 
         try:
-            # Calculate features using indicator engine
+            # Calculate features using indicator engine with option chain data
             features = self.indicator_engine.calculate_all_features(
-                current_price, implied_move, vix_level
+                current_price, implied_move, vix_level, option_chain_data
             )
 
             # Store in database

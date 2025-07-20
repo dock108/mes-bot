@@ -53,6 +53,8 @@ class EnhancedLottoGridStrategy(LottoGridStrategy):
         self.last_feature_collection = None
         self.last_ml_training = None
         self.current_market_regime = None
+        self.last_option_chain_update = None
+        self.option_chain_data = None
 
         # VIX data provider
         self.vix_provider = None  # Initialize when needed
@@ -304,20 +306,33 @@ class EnhancedLottoGridStrategy(LottoGridStrategy):
         try:
             # Get current market data
             mes_contract = await self.ib_client.get_mes_contract()
-            current_price = await self.ib_client.get_current_price(mes_contract)
+            market_data = await self.ib_client.get_market_data(mes_contract)
 
-            if current_price:
-                # Initialize with current price data
+            if market_data:
+                # Get ATM IV
+                atm_strike = self._round_to_strike(market_data['mid'])
+                expiry = self.ib_client.get_today_expiry_string()
+                atm_call_contract = await self.ib_client.get_mes_option_contract(
+                    expiry, atm_strike, "C"
+                )
+                atm_iv = await self.ib_client.get_option_implied_volatility(atm_call_contract)
+                if not atm_iv:
+                    atm_iv = 0.2  # Fallback default
+
+                # Initialize with real market data
                 await self.decision_engine.update_market_data(
-                    price=current_price,
-                    bid=current_price - 0.25,  # Approximate bid
-                    ask=current_price + 0.25,  # Approximate ask
-                    volume=1000,  # Placeholder
-                    atm_iv=0.2,  # Will be updated with real data
+                    price=market_data['mid'],
+                    bid=market_data['bid'],
+                    ask=market_data['ask'],
+                    volume=market_data['volume'],
+                    atm_iv=atm_iv,
                     vix_level=await self._get_current_vix(),
                 )
 
-                logger.info("Decision engine initialized with market data")
+                logger.info("Decision engine initialized with real market data")
+                logger.debug(f"Market data: bid={market_data['bid']:.2f}, ask={market_data['ask']:.2f}, "
+                           f"mid={market_data['mid']:.2f}, volume={market_data['volume']}, "
+                           f"ATM IV={atm_iv:.3f}")
         except Exception as e:
             logger.error(f"Error initializing decision engine: {e}")
 
@@ -336,43 +351,66 @@ class EnhancedLottoGridStrategy(LottoGridStrategy):
             if not self.underlying_price or not self.implied_move:
                 return
 
-            # Get market data
+            # Get real market data
             mes_contract = await self.ib_client.get_mes_contract()
+            market_data = await self.ib_client.get_market_data(mes_contract)
 
-            # Approximate bid/ask (in real implementation, get actual market data)
-            bid = self.underlying_price - 0.25
-            ask = self.underlying_price + 0.25
-            volume = 1000  # Placeholder
+            if not market_data:
+                logger.warning("Could not get market data for feature collection")
+                return
 
             # Get ATM IV
+            atm_strike = self._round_to_strike(market_data['mid'])
             expiry = self.ib_client.get_today_expiry_string()
             atm_call_contract = await self.ib_client.get_mes_option_contract(
-                expiry, self._round_to_strike(self.underlying_price), "C"
+                expiry, atm_strike, "C"
             )
-            atm_iv = 0.2  # Placeholder - get from actual option price
+            atm_iv = await self.ib_client.get_option_implied_volatility(atm_call_contract)
+            if not atm_iv:
+                atm_iv = 0.2  # Fallback default
+                logger.warning("Could not get ATM IV, using default 0.2")
 
-            # Collect market data
+            # Get option chain data periodically (every 15 minutes)
+            if (
+                not self.last_option_chain_update
+                or (current_time - self.last_option_chain_update).total_seconds() > 900
+            ):
+                self.option_chain_data = await self._collect_option_chain_data()
+                self.last_option_chain_update = current_time
+
+            # Collect real market data
             await self.feature_collector.collect_market_data(
-                price=self.underlying_price,
-                bid=bid,
-                ask=ask,
-                volume=volume,
+                price=market_data['mid'],
+                bid=market_data['bid'],
+                ask=market_data['ask'],
+                volume=market_data['volume'],
                 atm_iv=atm_iv,
                 implied_move=self.implied_move,
                 vix_level=await self._get_current_vix(),
                 timestamp=current_time,
             )
 
-            # Calculate and store features
+            # Calculate and store features with option chain data
             features_id = await self.feature_collector.calculate_and_store_features(
-                current_price=self.underlying_price,
+                current_price=market_data['mid'],
                 implied_move=self.implied_move,
                 vix_level=await self._get_current_vix(),
                 timestamp=current_time,
+                option_chain_data=self.option_chain_data,
             )
 
             self.last_feature_collection = current_time
-            logger.debug(f"Collected market features, ID: {features_id}")
+            logger.info(
+                f"Collected real market features: bid={market_data['bid']:.2f}, "
+                f"ask={market_data['ask']:.2f}, volume={market_data['volume']}, "
+                f"ATM IV={atm_iv:.3f}, features_id={features_id}"
+            )
+
+            if self.option_chain_data:
+                logger.info(
+                    f"Option chain metrics: P/C ratio={self.option_chain_data.get('put_call_ratio', 0):.2f}, "
+                    f"Net gamma={self.option_chain_data.get('net_gamma', 0):.0f}"
+                )
 
         except Exception as e:
             logger.error(f"Error collecting market features: {e}")
@@ -390,6 +428,23 @@ class EnhancedLottoGridStrategy(LottoGridStrategy):
         # Fallback to default value
         logger.debug("Using default VIX value: 20.0")
         return 20.0
+
+    async def _collect_option_chain_data(self) -> Optional[Dict]:
+        """Collect option chain data for market microstructure features"""
+        try:
+            expiry = self.ib_client.get_today_expiry_string()
+            chain_data = await self.ib_client.get_option_chain_data("MES", expiry, num_strikes=10)
+
+            if chain_data:
+                logger.info(
+                    f"Collected option chain data: {len(chain_data.get('strikes', {}))} strikes, "
+                    f"P/C ratio: {chain_data.get('put_call_ratio', 0):.2f}"
+                )
+            return chain_data
+
+        except Exception as e:
+            logger.error(f"Error collecting option chain data: {e}")
+            return None
 
     def _combine_signals(
         self, basic_should_trade: bool, basic_reason: str, ml_signal: TradingSignal
