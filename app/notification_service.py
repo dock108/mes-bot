@@ -21,6 +21,13 @@ from app.config import config
 
 logger = logging.getLogger(__name__)
 
+    def _mask_phone_number(self, phone_number: str) -> str:
+        """Return a masked version of the phone number, e.g., ********1234"""
+        # Only show last 4 digits (or fewer if number is short)
+        num_digits = 4
+        if not phone_number or len(phone_number) <= num_digits:
+            return "*" * (len(phone_number) if phone_number else 0)
+        return "*" * (len(phone_number) - num_digits) + phone_number[-num_digits:]
 
 class NotificationLevel(Enum):
     """Notification priority levels"""
@@ -326,7 +333,8 @@ class NotificationService:
                         logger.error(f"Failed to send SMS to {phone_number}: {response.text}")
 
                 except Exception as e:
-                    logger.error(f"Error sending SMS to {phone_number}: {e}")
+                    masked_phone = self._mask_phone_number(phone_number)
+                    logger.error(f"Error sending SMS to {masked_phone}: {e}")
 
             return success_count > 0
 
