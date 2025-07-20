@@ -156,14 +156,9 @@ class EnhancedCircuitBreaker:
                 self._transition_to_half_open()
             else:
                 self.stats.record_rejection()
-                raise CircuitOpenError(
-                    f"Circuit breaker is OPEN (will retry after {self._time_until_retry()}s)"
-                )
+                raise CircuitOpenError(f"Circuit breaker is OPEN (will retry after {self._time_until_retry()}s)")
 
-        if (
-            self.state == CircuitState.HALF_OPEN
-            and self.half_open_calls >= self.half_open_max_calls
-        ):
+        if self.state == CircuitState.HALF_OPEN and self.half_open_calls >= self.half_open_max_calls:
             self.stats.record_rejection()
             raise CircuitOpenError("Circuit breaker is HALF_OPEN (max calls reached)")
 
@@ -195,14 +190,9 @@ class EnhancedCircuitBreaker:
                 self._transition_to_half_open()
             else:
                 self.stats.record_rejection()
-                raise CircuitOpenError(
-                    f"Circuit breaker is OPEN (will retry after {self._time_until_retry()}s)"
-                )
+                raise CircuitOpenError(f"Circuit breaker is OPEN (will retry after {self._time_until_retry()}s)")
 
-        if (
-            self.state == CircuitState.HALF_OPEN
-            and self.half_open_calls >= self.half_open_max_calls
-        ):
+        if self.state == CircuitState.HALF_OPEN and self.half_open_calls >= self.half_open_max_calls:
             self.stats.record_rejection()
             raise CircuitOpenError("Circuit breaker is HALF_OPEN (max calls reached)")
 
@@ -301,6 +291,42 @@ class EnhancedCircuitBreaker:
                 "error_breakdown": dict(self.stats.error_counts),
             },
         }
+
+    def get_stats(self) -> dict:
+        """Get circuit breaker statistics in test-compatible format"""
+        return {
+            "state": self.state.value,
+            "total_calls": self.stats.total_calls,
+            "successful_calls": self.stats.successful_calls,
+            "failed_calls": self.stats.failed_calls,
+            "rejected_calls": self.stats.rejected_calls,
+            "success_rate": self.stats.successful_calls / max(1, self.stats.total_calls),
+            "error_categories": dict(self.stats.error_counts),
+        }
+
+    def reset(self):
+        """Reset circuit breaker to initial state"""
+        self.state = CircuitState.CLOSED
+        self.failure_count = 0
+        self.last_failure_time = None
+        self.half_open_calls = 0
+        self.consecutive_successes = 0
+        self.stats = CircuitBreakerStats()
+
+    def __enter__(self):
+        """Enter context manager"""
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Exit context manager"""
+        if exc_type is not None:
+            # An exception occurred
+            self._on_failure(exc_val)
+            return False  # Don't suppress the exception
+        else:
+            # No exception
+            self._on_success()
+            return False
 
 
 class CircuitOpenError(Exception):

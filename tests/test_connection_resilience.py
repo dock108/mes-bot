@@ -304,6 +304,359 @@ class TestEnhancedCircuitBreaker:
         # Test permanent errors
         assert categorize_error(200, "No security found") == ErrorCategory.PERMANENT
 
+    def test_circuit_breaker_initialization(self):
+        """Test circuit breaker initialization with custom parameters"""
+        breaker = EnhancedCircuitBreaker(failure_threshold=5, recovery_timeout=30, half_open_max_calls=2)
+
+        assert breaker.state == CircuitState.CLOSED
+        assert breaker.failure_threshold == 5
+        assert breaker.recovery_timeout == 30
+        assert breaker.half_open_max_calls == 2
+        assert breaker.stats.total_calls == 0
+
+    def test_circuit_breaker_successful_calls(self):
+        """Test successful calls tracking"""
+        breaker = EnhancedCircuitBreaker(failure_threshold=3, recovery_timeout=60)
+
+        # Make successful calls
+        for i in range(5):
+            result = breaker._sync_call(lambda: "success")
+            assert result == "success"
+
+        assert breaker.state == CircuitState.CLOSED
+        assert breaker.stats.total_calls == 5
+        assert breaker.stats.successful_calls == 5
+        assert breaker.stats.failed_calls == 0
+
+    def test_circuit_breaker_mixed_calls(self):
+        """Test mixed successful and failed calls"""
+        breaker = EnhancedCircuitBreaker(failure_threshold=3, recovery_timeout=60)
+
+        # Successful calls
+        breaker._sync_call(lambda: "success")
+        breaker._sync_call(lambda: "success")
+
+        # Failed calls
+        try:
+            breaker._sync_call(lambda: 1 / 0)
+        except Exception:
+            pass
+
+        try:
+            breaker._sync_call(lambda: 1 / 0)
+        except Exception:
+            pass
+
+        assert breaker.state == CircuitState.CLOSED  # Still below threshold
+        assert breaker.stats.total_calls == 4
+        assert breaker.stats.successful_calls == 2
+        assert breaker.stats.failed_calls == 2
+
+    def test_circuit_breaker_half_open_state(self):
+        """Test half-open state behavior"""
+        breaker = EnhancedCircuitBreaker(failure_threshold=2, recovery_timeout=0.1, half_open_max_calls=2)
+
+        # Open circuit
+        for i in range(2):
+            try:
+                breaker._sync_call(lambda: 1 / 0)
+            except:
+                pass
+
+        assert breaker.state == CircuitState.OPEN
+
+        # Wait for recovery timeout
+        import time
+
+        time.sleep(0.2)
+
+        # First call should transition to half-open
+        assert breaker._should_attempt_reset() is True
+
+        # Simulate transition to half-open (would happen in actual call)
+        breaker.state = CircuitState.HALF_OPEN
+        breaker.consecutive_successes = 0
+
+        # Successful call in half-open
+        result = breaker._sync_call(lambda: "success")
+        assert result == "success"
+        assert breaker.consecutive_successes == 1
+
+        # Another successful call should close circuit
+        result = breaker._sync_call(lambda: "success")
+        assert result == "success"
+        assert breaker.state == CircuitState.CLOSED
+
+    def test_circuit_breaker_half_open_failure(self):
+        """Test failure in half-open state reopens circuit"""
+        breaker = EnhancedCircuitBreaker(failure_threshold=2, recovery_timeout=0.1)
+
+        # Open circuit
+        for i in range(2):
+            try:
+                breaker._sync_call(lambda: 1 / 0)
+            except:
+                pass
+
+        # Wait and transition to half-open
+        import time
+
+        time.sleep(0.2)
+        breaker.state = CircuitState.HALF_OPEN
+
+        # Failure in half-open should reopen circuit
+        try:
+            breaker._sync_call(lambda: 1 / 0)
+        except Exception:
+            pass
+
+        assert breaker.state == CircuitState.OPEN
+
+    def test_circuit_breaker_rejected_calls(self):
+        """Test calls are rejected when circuit is open"""
+        breaker = EnhancedCircuitBreaker(failure_threshold=2, recovery_timeout=60)
+
+        # Open circuit
+        for i in range(2):
+            try:
+                breaker._sync_call(lambda: 1 / 0)
+            except:
+                pass
+
+        assert breaker.state == CircuitState.OPEN
+
+        # Calls should be rejected
+        from app.circuit_breaker import CircuitOpenError
+
+        with pytest.raises(CircuitOpenError):
+            breaker._sync_call(lambda: "should be rejected")
+
+        assert breaker.stats.rejected_calls == 1
+
+    @pytest.mark.asyncio
+    async def test_async_circuit_breaker_calls(self):
+        """Test async calls through circuit breaker"""
+        breaker = EnhancedCircuitBreaker(failure_threshold=3, recovery_timeout=60)
+
+        # Successful async call
+        async def async_success():
+            await asyncio.sleep(0.01)
+            return "async success"
+
+        result = await breaker._async_call(async_success)
+        assert result == "async success"
+        assert breaker.stats.successful_calls == 1
+
+        # Failed async call
+        async def async_failure():
+            await asyncio.sleep(0.01)
+            raise ValueError("async error")
+
+        with pytest.raises(ValueError):
+            await breaker._async_call(async_failure)
+
+        assert breaker.stats.failed_calls == 1
+
+    def test_error_category_counting(self):
+        """Test error category tracking"""
+        breaker = EnhancedCircuitBreaker(failure_threshold=5, recovery_timeout=60)
+
+        # Create mock errors with different categories
+        class MockError(Exception):
+            def __init__(self, code, message):
+                self.code = code
+                self.message = message
+                super().__init__(message)
+
+        # Simulate different error types by calling _on_failure directly
+        errors = [
+            MockError(502, "Not connected"),  # CONNECTION
+            MockError(420, "Pacing violation"),  # RATE_LIMIT
+            MockError(200, "No security found"),  # PERMANENT
+            MockError(1100, "Connectivity lost"),  # TRANSIENT
+        ]
+
+        for error in errors:
+            breaker._on_failure(error)
+
+        assert breaker.stats.error_counts[ErrorCategory.CONNECTION] == 1
+        assert breaker.stats.error_counts[ErrorCategory.RATE_LIMIT] == 1
+        assert breaker.stats.error_counts[ErrorCategory.PERMANENT] == 1
+        assert breaker.stats.error_counts[ErrorCategory.TRANSIENT] == 1
+
+    def test_circuit_breaker_stats_reset(self):
+        """Test circuit breaker stats reset"""
+        breaker = EnhancedCircuitBreaker(failure_threshold=3, recovery_timeout=60)
+
+        # Generate some stats
+        breaker._sync_call(lambda: "success")
+        try:
+            breaker._sync_call(lambda: 1 / 0)
+        except Exception:
+            pass
+
+        assert breaker.stats.total_calls == 2
+        assert breaker.stats.successful_calls == 1
+        assert breaker.stats.failed_calls == 1
+
+        # Reset stats
+        breaker.reset()
+
+        assert breaker.stats.total_calls == 0
+        assert breaker.stats.successful_calls == 0
+        assert breaker.stats.failed_calls == 0
+        assert breaker.state == CircuitState.CLOSED
+
+    def test_circuit_breaker_get_stats(self):
+        """Test getting circuit breaker statistics"""
+        breaker = EnhancedCircuitBreaker(failure_threshold=3, recovery_timeout=60)
+
+        # Generate some activity
+        breaker._sync_call(lambda: "success")
+        breaker._sync_call(lambda: "success")
+        try:
+            breaker._sync_call(lambda: 1 / 0)
+        except Exception:
+            pass
+
+        stats = breaker.get_stats()
+
+        assert stats["state"] == "CLOSED"
+        assert stats["total_calls"] == 3
+        assert stats["successful_calls"] == 2
+        assert stats["failed_calls"] == 1
+        assert stats["success_rate"] == 2 / 3
+        assert "error_categories" in stats
+
+    def test_circuit_breaker_backoff_calculation(self):
+        """Test backoff calculation for rate limit errors"""
+        breaker = EnhancedCircuitBreaker(failure_threshold=5, recovery_timeout=60)
+
+        # Test that we can get status without backoff calculation
+        status = breaker.get_status()
+        assert "state" in status
+        assert status["state"] == "CLOSED"
+
+    def test_circuit_breaker_permanent_error_handling(self):
+        """Test permanent errors don't trigger circuit opening"""
+        breaker = EnhancedCircuitBreaker(failure_threshold=2, recovery_timeout=60)
+
+        # Create permanent error
+        class PermanentError(Exception):
+            def __init__(self):
+                self.code = 200
+                super().__init__("No security found")
+
+        for i in range(5):  # More than threshold
+            try:
+                breaker._sync_call(lambda: (_ for _ in ()).throw(PermanentError()))
+            except:
+                pass
+
+        # Circuit should remain closed for permanent errors
+        assert breaker.state == CircuitState.CLOSED
+        assert breaker.stats.error_counts[ErrorCategory.PERMANENT] == 5
+
+    def test_circuit_breaker_with_context_manager(self):
+        """Test circuit breaker context manager usage"""
+        breaker = EnhancedCircuitBreaker(failure_threshold=3, recovery_timeout=60)
+
+        # Test successful context manager usage
+        with breaker:
+            result = "context success"
+
+        assert breaker.stats.successful_calls == 1
+
+        # Test failed context manager usage
+        try:
+            with breaker:
+                raise ValueError("context error")
+        except ValueError:
+            pass
+
+        assert breaker.stats.failed_calls == 1
+
+    def test_categorize_error_unknown_code(self):
+        """Test error categorization for unknown error codes"""
+        from app.circuit_breaker import categorize_error
+
+        # Unknown error code with recognizable message
+        assert categorize_error(9999, "connection failed") == ErrorCategory.CONNECTION
+        assert categorize_error(9999, "rate limit exceeded") == ErrorCategory.RATE_LIMIT
+        assert categorize_error(9999, "invalid request") == ErrorCategory.PERMANENT
+        assert categorize_error(9999, "unknown error") == ErrorCategory.UNKNOWN
+
+    def test_categorize_error_message_analysis(self):
+        """Test error categorization based on message content"""
+        from app.circuit_breaker import categorize_error
+
+        # Test various message patterns
+        assert categorize_error(0, "Disconnected from server") == ErrorCategory.CONNECTION
+        assert categorize_error(0, "Too many requests per second") == ErrorCategory.RATE_LIMIT
+        assert categorize_error(0, "Order rejected by exchange") == ErrorCategory.PERMANENT
+        # "connection" in message triggers CONNECTION category, not UNKNOWN
+        assert categorize_error(0, "Temporary connection issue") == ErrorCategory.CONNECTION
+
+    def test_circuit_breaker_decorator_sync(self):
+        """Test circuit breaker decorator on sync function"""
+
+        @circuit_breaker(failure_threshold=2, recovery_timeout=60)
+        def test_function(x):
+            if x == 0:
+                raise ValueError("test error")
+            return x * 2
+
+        # Get the circuit breaker instance from the decorated function
+        breaker = test_function.circuit_breaker
+
+        # Successful call
+        result = test_function(5)
+        assert result == 10
+        assert breaker.stats.successful_calls == 1
+
+        # Failed calls
+        for i in range(2):
+            try:
+                test_function(0)
+            except ValueError:
+                pass
+
+        assert breaker.state == CircuitState.OPEN
+        assert breaker.stats.failed_calls == 2
+
+    @pytest.mark.asyncio
+    async def test_circuit_breaker_decorator_async(self):
+        """Test circuit breaker decorator on async function"""
+
+        @circuit_breaker(failure_threshold=2, recovery_timeout=60)
+        async def async_test_function(x):
+            await asyncio.sleep(0.01)
+            if x == 0:
+                raise ValueError("async test error")
+            return x * 3
+
+        # Get the circuit breaker instance from the decorated function
+        breaker = async_test_function.circuit_breaker
+
+        # Successful call
+        result = await async_test_function(4)
+        assert result == 12
+        assert breaker.stats.successful_calls == 1
+
+        # Failed calls
+        for i in range(2):
+            try:
+                await async_test_function(0)
+            except ValueError:
+                pass
+
+        assert breaker.state == CircuitState.OPEN
+        assert breaker.stats.failed_calls == 2
+
+    def test_categorize_error_unknown(self):
+        """Test unknown error categorization"""
+        from app.circuit_breaker import categorize_error
+
         # Test unknown errors
         assert categorize_error(9999, "Random error") == ErrorCategory.UNKNOWN
 

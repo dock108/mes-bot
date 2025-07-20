@@ -134,10 +134,7 @@ class ModelAutomationEngine:
                 for model_type, schedule_interval in self.retraining_schedule.items():
                     last_training = self.last_retraining.get(model_type)
 
-                    if (
-                        not last_training
-                        or (datetime.utcnow() - last_training) >= schedule_interval
-                    ):
+                    if not last_training or (datetime.utcnow() - last_training) >= schedule_interval:
                         logger.info(f"Scheduled retraining triggered for {model_type} model")
                         await self.trigger_model_retraining(model_type, RetrainingTrigger.SCHEDULED)
 
@@ -157,15 +154,11 @@ class ModelAutomationEngine:
                 logger.debug("Monitoring model performance...")
 
                 for model_type in ["entry", "exit", "strike"]:
-                    performance_degraded = await self._check_model_performance_degradation(
-                        model_type
-                    )
+                    performance_degraded = await self._check_model_performance_degradation(model_type)
 
                     if performance_degraded:
                         logger.warning(f"Performance degradation detected for {model_type} model")
-                        await self.trigger_model_retraining(
-                            model_type, RetrainingTrigger.PERFORMANCE_DEGRADATION
-                        )
+                        await self.trigger_model_retraining(model_type, RetrainingTrigger.PERFORMANCE_DEGRADATION)
 
                 # Check every 4 hours
                 await asyncio.sleep(14400)
@@ -187,9 +180,7 @@ class ModelAutomationEngine:
 
                     if new_data_available:
                         logger.info(f"Sufficient new data available for {model_type} model")
-                        await self.trigger_model_retraining(
-                            model_type, RetrainingTrigger.DATA_FRESHNESS
-                        )
+                        await self.trigger_model_retraining(model_type, RetrainingTrigger.DATA_FRESHNESS)
 
                 # Check every 6 hours
                 await asyncio.sleep(21600)
@@ -200,9 +191,7 @@ class ModelAutomationEngine:
                 logger.error(f"Error in data freshness monitoring loop: {e}")
                 await asyncio.sleep(3600)  # Wait 1 hour before retrying
 
-    async def trigger_model_retraining(
-        self, model_type: str, trigger: RetrainingTrigger, force: bool = False
-    ) -> bool:
+    async def trigger_model_retraining(self, model_type: str, trigger: RetrainingTrigger, force: bool = False) -> bool:
         """
         Trigger retraining for a specific model type
 
@@ -219,9 +208,7 @@ class ModelAutomationEngine:
             if not force and model_type in self.last_retraining:
                 time_since_last = datetime.utcnow() - self.last_retraining[model_type]
                 if time_since_last < timedelta(hours=12):
-                    logger.info(
-                        f"Skipping {model_type} retraining - too recent ({time_since_last})"
-                    )
+                    logger.info(f"Skipping {model_type} retraining - too recent ({time_since_last})")
                     return False
 
             logger.info(f"Starting {model_type} model retraining (trigger: {trigger.value})")
@@ -247,9 +234,7 @@ class ModelAutomationEngine:
             performance_metrics = {}
 
             if model_type == "entry":
-                model = await self.model_trainer.train_entry_model(
-                    start_date, end_date, algorithm="random_forest"
-                )
+                model = await self.model_trainer.train_entry_model(start_date, end_date, algorithm="random_forest")
                 if model:
                     success = True
                     performance_metrics = {
@@ -260,9 +245,7 @@ class ModelAutomationEngine:
                     }
 
             elif model_type == "exit":
-                model = await self.model_trainer.train_exit_model(
-                    start_date, end_date, algorithm="random_forest"
-                )
+                model = await self.model_trainer.train_exit_model(start_date, end_date, algorithm="random_forest")
                 if model:
                     success = True
                     performance_metrics = {
@@ -271,9 +254,7 @@ class ModelAutomationEngine:
                     }
 
             elif model_type == "strike":
-                model = await self.model_trainer.train_strike_model(
-                    start_date, end_date, algorithm="random_forest"
-                )
+                model = await self.model_trainer.train_strike_model(start_date, end_date, algorithm="random_forest")
                 if model:
                     success = True
                     performance_metrics = {
@@ -355,8 +336,7 @@ class ModelAutomationEngine:
                 correct_predictions = sum(
                     1
                     for p in predictions
-                    if (p.prediction > 0.5 and p.actual_outcome > 0)
-                    or (p.prediction <= 0.5 and p.actual_outcome <= 0)
+                    if (p.prediction > 0.5 and p.actual_outcome > 0) or (p.prediction <= 0.5 and p.actual_outcome <= 0)
                 )
                 current_accuracy = correct_predictions / len(predictions)
 
@@ -368,8 +348,7 @@ class ModelAutomationEngine:
                 correct_predictions = sum(
                     1
                     for p in predictions
-                    if (p.prediction > 0.5 and p.actual_outcome > 0)
-                    or (p.prediction <= 0.5 and p.actual_outcome <= 0)
+                    if (p.prediction > 0.5 and p.actual_outcome > 0) or (p.prediction <= 0.5 and p.actual_outcome <= 0)
                 )
                 current_accuracy = correct_predictions / len(predictions)
 
@@ -378,9 +357,7 @@ class ModelAutomationEngine:
 
             elif model_type == "strike":
                 # Calculate MSE for strike models
-                mse = sum((p.prediction - p.actual_outcome) ** 2 for p in predictions) / len(
-                    predictions
-                )
+                mse = sum((p.prediction - p.actual_outcome) ** 2 for p in predictions) / len(predictions)
 
                 threshold = self.performance_thresholds[model_type]["max_mse"]
                 return mse > threshold
@@ -398,9 +375,7 @@ class ModelAutomationEngine:
         try:
             session = self.session_maker()
 
-            last_training_time = self.last_retraining.get(
-                model_type, datetime.utcnow() - timedelta(days=30)
-            )
+            last_training_time = self.last_retraining.get(model_type, datetime.utcnow() - timedelta(days=30))
 
             # Count new completed trades since last training
             new_trades = (
@@ -449,9 +424,7 @@ class ModelAutomationEngine:
 
         # Keep only last 50 entries
         if len(self.model_performance_history[model_type]) > 50:
-            self.model_performance_history[model_type] = self.model_performance_history[model_type][
-                -50:
-            ]
+            self.model_performance_history[model_type] = self.model_performance_history[model_type][-50:]
 
     def get_automation_status(self) -> Dict:
         """Get current status of the automation system"""
@@ -463,12 +436,10 @@ class ModelAutomationEngine:
                 for model_type, timestamp in self.last_retraining.items()
             },
             "retraining_schedule": {
-                model_type: str(interval)
-                for model_type, interval in self.retraining_schedule.items()
+                model_type: str(interval) for model_type, interval in self.retraining_schedule.items()
             },
             "performance_history_entries": {
-                model_type: len(history)
-                for model_type, history in self.model_performance_history.items()
+                model_type: len(history) for model_type, history in self.model_performance_history.items()
             },
         }
 
@@ -478,9 +449,7 @@ class ModelAutomationEngine:
 
         results = {}
         for model_type in ["entry", "exit", "strike"]:
-            results[model_type] = await self.trigger_model_retraining(
-                model_type, RetrainingTrigger.MANUAL, force=True
-            )
+            results[model_type] = await self.trigger_model_retraining(model_type, RetrainingTrigger.MANUAL, force=True)
 
         await send_system_alert(
             "Manual Model Retraining Completed",
