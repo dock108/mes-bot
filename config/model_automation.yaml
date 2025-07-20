@@ -1,0 +1,103 @@
+# Model Automation Configuration
+
+# Retraining schedule configuration
+retraining_schedule:
+  entry_model:
+    interval_days: 7  # Retrain entry models weekly
+    min_new_trades: 50  # Minimum new trades to trigger retraining
+    min_new_decisions: 100  # Minimum new decisions to trigger retraining
+
+  exit_model:
+    interval_days: 14  # Retrain exit models bi-weekly
+    min_new_trades: 30
+    min_new_decisions: 75
+
+  strike_model:
+    interval_days: 10  # Retrain strike models every 10 days
+    min_new_trades: 40
+    min_new_decisions: 80
+
+# Performance monitoring thresholds
+performance_thresholds:
+  entry_model:
+    min_accuracy: 0.40
+    min_f1_score: 0.35
+    max_degradation_percent: 10  # Maximum acceptable performance degradation
+    monitoring_window_days: 7  # Days to look back for performance calculation
+
+  exit_model:
+    min_accuracy: 0.45
+    min_f1_score: 0.40
+    max_degradation_percent: 10
+    monitoring_window_days: 7
+
+  strike_model:
+    max_mse: 10000
+    min_r2_score: -0.5
+    max_degradation_percent: 20
+    monitoring_window_days: 7
+
+# Model versioning settings
+versioning:
+  max_versions_to_keep: 20  # Maximum model versions to keep per type
+  auto_deploy_threshold: 0.1  # Auto-deploy if performance improves by this amount
+  enable_auto_deployment: false  # Whether to automatically deploy better models
+  backup_models: true  # Whether to backup models before deployment
+
+# Monitoring intervals (in seconds)
+monitoring:
+  performance_check_interval: 14400  # 4 hours
+  data_freshness_check_interval: 21600  # 6 hours
+  scheduled_training_check_interval: 3600  # 1 hour
+
+# Training configuration
+training:
+  default_algorithm: "random_forest"
+  training_data_window_days: 60  # Days of data to use for training
+  min_training_samples: 100  # Minimum samples required for training
+  enable_hyperparameter_optimization: true
+  cross_validation_folds: 5
+
+# Notification settings
+notifications:
+  notify_on_training_start: true
+  notify_on_training_completion: true
+  notify_on_training_failure: true
+  notify_on_performance_degradation: true
+  notify_on_deployment: true
+  notify_on_rollback: true
+
+  # Notification levels
+  training_start: "info"
+  training_success: "info"
+  training_failure: "error"
+  performance_degradation: "warning"
+  deployment: "info"
+  rollback: "warning"
+
+# Model deployment settings
+deployment:
+  enable_staging_environment: true
+  staging_validation_period_hours: 24  # Hours to validate in staging before production
+  enable_canary_deployment: false  # Gradual rollout to production
+  canary_percentage: 10  # Percentage of traffic for canary deployment
+
+# Data quality requirements
+data_quality:
+  min_completeness: 0.8  # Minimum data completeness ratio
+  min_consistency: 0.9   # Minimum data consistency ratio
+  min_freshness: 0.7     # Minimum data freshness ratio
+
+# Advanced settings
+advanced:
+  enable_model_explainability: true
+  generate_feature_importance: true
+  enable_drift_detection: true
+  drift_detection_threshold: 0.3
+  enable_a_b_testing: false
+
+# Resource limits
+resources:
+  max_concurrent_training_jobs: 2
+  training_timeout_minutes: 60
+  memory_limit_mb: 4096

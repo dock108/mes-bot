@@ -227,11 +227,12 @@ class TestSyntheticDataGenerator:
                     result = generator.create_synthetic_dataset(num_records=10)
 
                     assert result is True
-                    assert session.add.called
-                    assert session.add_all.called
-                    assert session.commit.called
-                    assert not session.rollback.called
-                    mock_logger.info.assert_called()
+                    # Use call_count for more reliable assertions across Python versions
+                    assert session.add.call_count > 0
+                    assert session.add_all.call_count > 0
+                    assert session.commit.call_count > 0
+                    assert session.rollback.call_count == 0
+                    assert mock_logger.info.call_count > 0
 
     @patch("app.synthetic_data_generator.logger")
     def test_create_synthetic_dataset_filters_weekends(
