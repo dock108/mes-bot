@@ -330,7 +330,8 @@ class NotificationService:
                     if response.status_code == 201:
                         success_count += 1
                     else:
-                        logger.error(f"Failed to send SMS to {phone_number}: {response.text}")
+                        masked_phone = self._mask_phone_number(phone_number)
+                        logger.error(f"Failed to send SMS to {masked_phone}: Status code {response.status_code}")
 
                 except Exception as e:
                     masked_phone = self._mask_phone_number(phone_number)
