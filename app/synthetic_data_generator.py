@@ -16,7 +16,8 @@ from sqlalchemy.orm import Session
 
 from app.config import config
 from app.market_indicators import MarketFeatures
-from app.models import DecisionHistory, MarketFeatures as MarketFeaturesModel
+from app.models import DecisionHistory
+from app.models import MarketFeatures as MarketFeaturesModel
 from app.models import Trade, get_session_maker
 
 logger = logging.getLogger(__name__)
@@ -31,31 +32,28 @@ class SyntheticDataGenerator:
 
         # Market regime parameters
         self.market_regimes = {
-            'low_vol': {'vix_range': (12, 18), 'vol_multiplier': 0.7, 'trend_strength': 0.3},
-            'normal': {'vix_range': (18, 25), 'vol_multiplier': 1.0, 'trend_strength': 0.5},
-            'high_vol': {'vix_range': (25, 35), 'vol_multiplier': 1.4, 'trend_strength': 0.7},
-            'crisis': {'vix_range': (35, 60), 'vol_multiplier': 2.0, 'trend_strength': 0.9}
+            "low_vol": {"vix_range": (12, 18), "vol_multiplier": 0.7, "trend_strength": 0.3},
+            "normal": {"vix_range": (18, 25), "vol_multiplier": 1.0, "trend_strength": 0.5},
+            "high_vol": {"vix_range": (25, 35), "vol_multiplier": 1.4, "trend_strength": 0.7},
+            "crisis": {"vix_range": (35, 60), "vol_multiplier": 2.0, "trend_strength": 0.9},
         }
 
         # Trading outcome probabilities based on market conditions
         self.outcome_probabilities = {
-            'favorable': {'win_rate': 0.65, 'avg_profit': 3.2, 'avg_loss': -1.8},
-            'neutral': {'win_rate': 0.45, 'avg_profit': 2.8, 'avg_loss': -2.1},
-            'unfavorable': {'win_rate': 0.25, 'avg_profit': 2.4, 'avg_loss': -2.5}
+            "favorable": {"win_rate": 0.65, "avg_profit": 3.2, "avg_loss": -1.8},
+            "neutral": {"win_rate": 0.45, "avg_profit": 2.8, "avg_loss": -2.1},
+            "unfavorable": {"win_rate": 0.25, "avg_profit": 2.4, "avg_loss": -2.5},
         }
 
     def generate_market_features(
-        self,
-        timestamp: datetime,
-        regime: str = 'normal',
-        base_price: float = 4500.0
+        self, timestamp: datetime, regime: str = "normal", base_price: float = 4500.0
     ) -> MarketFeatures:
         """Generate realistic market features for a given timestamp and regime"""
 
         regime_params = self.market_regimes[regime]
 
         # Generate correlated volatility measures
-        base_vol = np.random.uniform(0.15, 0.35) * regime_params['vol_multiplier']
+        base_vol = np.random.uniform(0.15, 0.35) * regime_params["vol_multiplier"]
         realized_vol_15m = base_vol * np.random.uniform(0.8, 1.2)
         realized_vol_30m = base_vol * np.random.uniform(0.85, 1.15)
         realized_vol_60m = base_vol * np.random.uniform(0.9, 1.1)
@@ -70,7 +68,7 @@ class SyntheticDataGenerator:
         iv_percentile = iv_rank + np.random.uniform(-5, 5)
 
         # Technical indicators with realistic correlations
-        trend_strength = regime_params['trend_strength']
+        trend_strength = regime_params["trend_strength"]
         rsi_base = 50 + (np.random.random() - 0.5) * 40 * trend_strength
         rsi_5m = np.clip(rsi_base + np.random.uniform(-5, 5), 5, 95)
         rsi_15m = np.clip(rsi_base + np.random.uniform(-3, 3), 5, 95)
@@ -91,7 +89,7 @@ class SyntheticDataGenerator:
         price_momentum_60m = momentum_factor * 0.6 + np.random.uniform(-0.002, 0.002)
 
         # VIX and market regime
-        vix_level = np.random.uniform(*regime_params['vix_range'])
+        vix_level = np.random.uniform(*regime_params["vix_range"])
         vix_term_structure = np.random.uniform(-0.1, 0.2)  # Usually positive
 
         # Market microstructure
@@ -105,10 +103,12 @@ class SyntheticDataGenerator:
 
         # Options-specific features
         put_call_ratio = np.random.uniform(0.8, 1.3)
-        gamma_exposure = np.random.uniform(-0.1, 0.1) * regime_params['vol_multiplier']
+        gamma_exposure = np.random.uniform(-0.1, 0.1) * regime_params["vol_multiplier"]
 
         # Generate price based on momentum and volatility
-        price_change = price_momentum_15m * base_price + np.random.normal(0, base_vol * base_price * 0.01)
+        price_change = price_momentum_15m * base_price + np.random.normal(
+            0, base_vol * base_price * 0.01
+        )
         current_price = base_price + price_change
 
         return MarketFeatures(
@@ -152,7 +152,7 @@ class SyntheticDataGenerator:
             sharpe_ratio_recent=np.random.uniform(-1.0, 2.0),
             price=current_price,
             volume=np.random.uniform(100000, 500000),
-            timestamp=timestamp
+            timestamp=timestamp,
         )
 
     def classify_market_condition(self, features: MarketFeatures) -> str:
@@ -177,28 +177,30 @@ class SyntheticDataGenerator:
             score += 1
 
         if score >= 4:
-            return 'favorable'
+            return "favorable"
         elif score >= 2:
-            return 'neutral'
+            return "neutral"
         else:
-            return 'unfavorable'
+            return "unfavorable"
 
-    def generate_trade_outcome(self, condition: str, features: MarketFeatures) -> Tuple[bool, float]:
+    def generate_trade_outcome(
+        self, condition: str, features: MarketFeatures
+    ) -> Tuple[bool, float]:
         """Generate realistic trade outcome based on market condition"""
 
         prob_params = self.outcome_probabilities[condition]
 
         # Determine if trade wins
-        is_winner = np.random.random() < prob_params['win_rate']
+        is_winner = np.random.random() < prob_params["win_rate"]
 
         if is_winner:
             # Winning trade - profit target hit
-            base_profit = prob_params['avg_profit']
+            base_profit = prob_params["avg_profit"]
             profit_multiplier = base_profit + np.random.uniform(-0.5, 0.5)
             return True, profit_multiplier
         else:
             # Losing trade
-            base_loss = prob_params['avg_loss']
+            base_loss = prob_params["avg_loss"]
             loss_multiplier = base_loss + np.random.uniform(-0.3, 0.3)
             return False, loss_multiplier
 
@@ -280,18 +282,18 @@ class SyntheticDataGenerator:
                     profit_factor_recent=features.profit_factor_recent,
                     sharpe_ratio_recent=features.sharpe_ratio_recent,
                     price=features.price,
-                    volume=features.volume
+                    volume=features.volume,
                 )
                 generated_features.append(features_model)
 
                 # Generate decision
                 condition = self.classify_market_condition(features)
-                should_enter = condition in ['favorable', 'neutral'] and np.random.random() > 0.3
+                should_enter = condition in ["favorable", "neutral"] and np.random.random() > 0.3
 
                 confidence = {
-                    'favorable': np.random.uniform(0.7, 0.95),
-                    'neutral': np.random.uniform(0.4, 0.7),
-                    'unfavorable': np.random.uniform(0.1, 0.4)
+                    "favorable": np.random.uniform(0.7, 0.95),
+                    "neutral": np.random.uniform(0.4, 0.7),
+                    "unfavorable": np.random.uniform(0.1, 0.4),
                 }[condition]
 
                 # Store the features first to get an ID
@@ -300,22 +302,29 @@ class SyntheticDataGenerator:
 
                 decision = DecisionHistory(
                     timestamp=timestamp,
-                    action='ENTER' if should_enter else 'HOLD',
+                    action="ENTER" if should_enter else "HOLD",
                     confidence=confidence,
                     underlying_price=features.price,
                     implied_move=features.price * 0.02,  # Typical 2% implied move
                     features_id=features_model.id,  # Link to features
                     reasoning=[f"Market condition: {condition}", f"Confidence: {confidence:.2f}"],
-                    model_predictions={'volatility_based': confidence * 0.8, 'ml_ensemble': confidence * 1.2}
+                    model_predictions={
+                        "volatility_based": confidence * 0.8,
+                        "ml_ensemble": confidence * 1.2,
+                    },
                 )
                 generated_decisions.append(decision)
 
                 # Generate trade if decision was to enter
-                if should_enter and np.random.random() > 0.1:  # Some decisions don't result in trades
+                if (
+                    should_enter and np.random.random() > 0.1
+                ):  # Some decisions don't result in trades
                     is_winner, pnl_multiplier = self.generate_trade_outcome(condition, features)
 
                     # Calculate trade details
-                    premium_collected = np.random.uniform(15, 40)  # Typical premium for 0DTE strangles
+                    premium_collected = np.random.uniform(
+                        15, 40
+                    )  # Typical premium for 0DTE strangles
                     pnl = premium_collected * pnl_multiplier
 
                     exit_time = timestamp + timedelta(hours=np.random.uniform(1, 6))
@@ -326,7 +335,7 @@ class SyntheticDataGenerator:
                         date=timestamp.date(),
                         entry_time=timestamp,
                         exit_time=exit_time,
-                        underlying_symbol='MES',
+                        underlying_symbol="MES",
                         underlying_price_at_entry=features.price,
                         implied_move=features.price * 0.02,
                         call_strike=call_strike,
@@ -337,9 +346,9 @@ class SyntheticDataGenerator:
                         call_exit_price=0.01 if is_winner else premium_collected * 0.6,
                         put_exit_price=0.01 if is_winner else premium_collected * 0.6,
                         realized_pnl=pnl,
-                        status='CLOSED_WIN' if is_winner else 'CLOSED_LOSS',
-                        call_status='CLOSED_PROFIT' if is_winner else 'EXPIRED',
-                        put_status='CLOSED_PROFIT' if is_winner else 'EXPIRED'
+                        status="CLOSED_WIN" if is_winner else "CLOSED_LOSS",
+                        call_status="CLOSED_PROFIT" if is_winner else "EXPIRED",
+                        put_status="CLOSED_PROFIT" if is_winner else "EXPIRED",
                     )
                     session.add(trade)
                     session.flush()  # Get trade ID
@@ -396,28 +405,30 @@ class SyntheticDataGenerator:
                 avg_vix = np.mean([f.vix_level for f in features])
                 regime_distribution = {}
                 for f in features:
-                    regime_distribution[f.market_regime] = regime_distribution.get(f.market_regime, 0) + 1
+                    regime_distribution[f.market_regime] = (
+                        regime_distribution.get(f.market_regime, 0) + 1
+                    )
             else:
                 avg_iv_rank = avg_vix = 0
                 regime_distribution = {}
 
             validation_results = {
-                'data_counts': {
-                    'features': features_count,
-                    'decisions': decisions_count,
-                    'trades': trades_count
+                "data_counts": {
+                    "features": features_count,
+                    "decisions": decisions_count,
+                    "trades": trades_count,
                 },
-                'trade_metrics': {
-                    'win_rate': win_rate,
-                    'avg_profit': avg_profit,
-                    'avg_loss': avg_loss,
-                    'total_pnl': total_pnl
+                "trade_metrics": {
+                    "win_rate": win_rate,
+                    "avg_profit": avg_profit,
+                    "avg_loss": avg_loss,
+                    "total_pnl": total_pnl,
                 },
-                'market_characteristics': {
-                    'avg_iv_rank': avg_iv_rank,
-                    'avg_vix': avg_vix,
-                    'regime_distribution': regime_distribution
-                }
+                "market_characteristics": {
+                    "avg_iv_rank": avg_iv_rank,
+                    "avg_vix": avg_vix,
+                    "regime_distribution": regime_distribution,
+                },
             }
 
             return validation_results
@@ -452,7 +463,9 @@ def main():
         print(f"\nMarket Characteristics:")
         print(f"  Avg IV Rank: {validation['market_characteristics']['avg_iv_rank']:.1f}")
         print(f"  Avg VIX: {validation['market_characteristics']['avg_vix']:.1f}")
-        print(f"  Regime Distribution: {validation['market_characteristics']['regime_distribution']}")
+        print(
+            f"  Regime Distribution: {validation['market_characteristics']['regime_distribution']}"
+        )
     else:
         print("Failed to generate synthetic data")
 
