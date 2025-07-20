@@ -12,13 +12,12 @@ from pathlib import Path
 # Add parent directory to path
 sys.path.append(str(Path(__file__).parent.parent))
 
-from app.config import config
-from app.ml_training import ModelTrainer
+from app.config import config  # noqa: E402
+from app.ml_training import ModelTrainer  # noqa: E402
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -54,7 +53,7 @@ async def main():
                 sorted_features = sorted(
                     entry_model.performance.feature_importance.items(),
                     key=lambda x: x[1],
-                    reverse=True
+                    reverse=True,
                 )[:10]
                 for feature, importance in sorted_features:
                     logger.info(f"  {feature}: {importance:.4f}")
@@ -63,9 +62,7 @@ async def main():
 
         # Train exit model
         logger.info(f"\nTraining exit prediction model...")
-        exit_model = await trainer.train_exit_model(
-            start_date, end_date, algorithm="random_forest"
-        )
+        exit_model = await trainer.train_exit_model(start_date, end_date, algorithm="random_forest")
 
         if exit_model:
             logger.info(f"Exit model trained successfully!")

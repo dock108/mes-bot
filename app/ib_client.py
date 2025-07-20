@@ -390,24 +390,24 @@ class IBClient:
                 return None
 
             # Get volume data
-            volume = ticker.volume if hasattr(ticker, 'volume') and ticker.volume >= 0 else 0
+            volume = ticker.volume if hasattr(ticker, "volume") and ticker.volume >= 0 else 0
 
             # For options, get implied volatility
             iv = None
-            if contract.secType == 'OPT' and hasattr(ticker, 'modelGreeks'):
-                if ticker.modelGreeks and hasattr(ticker.modelGreeks, 'impliedVol'):
+            if contract.secType == "OPT" and hasattr(ticker, "modelGreeks"):
+                if ticker.modelGreeks and hasattr(ticker.modelGreeks, "impliedVol"):
                     iv = ticker.modelGreeks.impliedVol
 
             return {
-                'bid': bid or mid - 0.25,  # Approximate if not available
-                'ask': ask or mid + 0.25,  # Approximate if not available
-                'mid': mid,
-                'last': last,
-                'close': close,
-                'volume': volume,
-                'implied_volatility': iv,
-                'bid_size': ticker.bidSize if hasattr(ticker, 'bidSize') else 0,
-                'ask_size': ticker.askSize if hasattr(ticker, 'askSize') else 0
+                "bid": bid or mid - 0.25,  # Approximate if not available
+                "ask": ask or mid + 0.25,  # Approximate if not available
+                "mid": mid,
+                "last": last,
+                "close": close,
+                "volume": volume,
+                "implied_volatility": iv,
+                "bid_size": ticker.bidSize if hasattr(ticker, "bidSize") else 0,
+                "ask_size": ticker.askSize if hasattr(ticker, "askSize") else 0,
             }
 
         except Exception as e:
@@ -421,15 +421,15 @@ class IBClient:
     async def get_option_implied_volatility(self, contract: Contract) -> Optional[float]:
         """Get implied volatility for an option contract"""
         try:
-            if contract.secType != 'OPT':
+            if contract.secType != "OPT":
                 logger.warning("Contract is not an option")
                 return None
 
             ticker = self.ib.reqMktData(contract, "", False, False)
             await asyncio.sleep(3)  # Wait longer for Greeks calculation
 
-            if hasattr(ticker, 'modelGreeks') and ticker.modelGreeks:
-                if hasattr(ticker.modelGreeks, 'impliedVol'):
+            if hasattr(ticker, "modelGreeks") and ticker.modelGreeks:
+                if hasattr(ticker.modelGreeks, "impliedVol"):
                     iv = ticker.modelGreeks.impliedVol
                     if iv and iv > 0:
                         return float(iv)
@@ -442,7 +442,9 @@ class IBClient:
                 if underlying_price:
                     time_to_expiry = 0.02  # Rough estimate for 0DTE in years
                     # Simplified IV approximation for ATM options
-                    iv_estimate = (option_price / underlying_price) / (0.4 * math.sqrt(time_to_expiry))
+                    iv_estimate = (option_price / underlying_price) / (
+                        0.4 * math.sqrt(time_to_expiry)
+                    )
                     return min(2.0, max(0.05, iv_estimate))  # Cap between 5% and 200%
 
             return None
@@ -711,8 +713,9 @@ class IBClient:
 
     @with_connection_check
     @circuit_breaker(failure_threshold=5, recovery_timeout=60)
-    async def get_option_chain_data(self, underlying_symbol: str, expiry: str,
-                                    num_strikes: int = 10) -> Optional[Dict[str, Dict]]:
+    async def get_option_chain_data(
+        self, underlying_symbol: str, expiry: str, num_strikes: int = 10
+    ) -> Optional[Dict[str, Dict]]:
         """Get option chain data for put/call ratio and gamma calculations"""
         try:
             # Get current underlying price
@@ -732,29 +735,29 @@ class IBClient:
                 strikes.append(strike)
 
             chain_data = {
-                'underlying_price': underlying_price,
-                'strikes': {},
-                'total_call_volume': 0,
-                'total_put_volume': 0,
-                'total_call_oi': 0,
-                'total_put_oi': 0,
-                'net_gamma': 0
+                "underlying_price": underlying_price,
+                "strikes": {},
+                "total_call_volume": 0,
+                "total_put_volume": 0,
+                "total_call_oi": 0,
+                "total_put_oi": 0,
+                "net_gamma": 0,
             }
 
             # Collect data for each strike
             for strike in strikes:
-                strike_data = {'strike': strike}
+                strike_data = {"strike": strike}
 
                 # Get call data
                 try:
                     call_contract = await self.get_mes_option_contract(expiry, strike, "C")
                     call_data = await self.get_market_data(call_contract)
                     if call_data:
-                        strike_data['call_bid'] = call_data['bid']
-                        strike_data['call_ask'] = call_data['ask']
-                        strike_data['call_volume'] = call_data['volume']
-                        strike_data['call_iv'] = call_data['implied_volatility'] or 0.2
-                        chain_data['total_call_volume'] += call_data['volume']
+                        strike_data["call_bid"] = call_data["bid"]
+                        strike_data["call_ask"] = call_data["ask"]
+                        strike_data["call_volume"] = call_data["volume"]
+                        strike_data["call_iv"] = call_data["implied_volatility"] or 0.2
+                        chain_data["total_call_volume"] += call_data["volume"]
                 except Exception as e:
                     logger.debug(f"Error getting call data for strike {strike}: {e}")
 
@@ -763,16 +766,16 @@ class IBClient:
                     put_contract = await self.get_mes_option_contract(expiry, strike, "P")
                     put_data = await self.get_market_data(put_contract)
                     if put_data:
-                        strike_data['put_bid'] = put_data['bid']
-                        strike_data['put_ask'] = put_data['ask']
-                        strike_data['put_volume'] = put_data['volume']
-                        strike_data['put_iv'] = put_data['implied_volatility'] or 0.2
-                        chain_data['total_put_volume'] += put_data['volume']
+                        strike_data["put_bid"] = put_data["bid"]
+                        strike_data["put_ask"] = put_data["ask"]
+                        strike_data["put_volume"] = put_data["volume"]
+                        strike_data["put_iv"] = put_data["implied_volatility"] or 0.2
+                        chain_data["total_put_volume"] += put_data["volume"]
                 except Exception as e:
                     logger.debug(f"Error getting put data for strike {strike}: {e}")
 
                 # Estimate gamma contribution (simplified)
-                if 'call_iv' in strike_data and 'put_iv' in strike_data:
+                if "call_iv" in strike_data and "put_iv" in strike_data:
                     moneyness = (underlying_price - strike) / underlying_price
                     # Simple gamma approximation for ATM options
                     if abs(moneyness) < 0.02:  # Near ATM
@@ -781,20 +784,24 @@ class IBClient:
                         gamma_weight = max(0, 1 - abs(moneyness) * 20)
 
                     # Net gamma (calls positive, puts negative)
-                    call_gamma = gamma_weight * strike_data.get('call_volume', 0)
-                    put_gamma = -gamma_weight * strike_data.get('put_volume', 0)
-                    chain_data['net_gamma'] += (call_gamma + put_gamma)
+                    call_gamma = gamma_weight * strike_data.get("call_volume", 0)
+                    put_gamma = -gamma_weight * strike_data.get("put_volume", 0)
+                    chain_data["net_gamma"] += call_gamma + put_gamma
 
-                chain_data['strikes'][strike] = strike_data
+                chain_data["strikes"][strike] = strike_data
 
             # Calculate put/call ratio
-            if chain_data['total_call_volume'] > 0:
-                chain_data['put_call_ratio'] = chain_data['total_put_volume'] / chain_data['total_call_volume']
+            if chain_data["total_call_volume"] > 0:
+                chain_data["put_call_ratio"] = (
+                    chain_data["total_put_volume"] / chain_data["total_call_volume"]
+                )
             else:
-                chain_data['put_call_ratio'] = 1.0
+                chain_data["put_call_ratio"] = 1.0
 
-            logger.info(f"Collected option chain data: {len(strikes)} strikes, "
-                       f"P/C ratio: {chain_data['put_call_ratio']:.2f}")
+            logger.info(
+                f"Collected option chain data: {len(strikes)} strikes, "
+                f"P/C ratio: {chain_data['put_call_ratio']:.2f}"
+            )
             return chain_data
 
         except Exception as e:

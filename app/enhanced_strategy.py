@@ -310,7 +310,7 @@ class EnhancedLottoGridStrategy(LottoGridStrategy):
 
             if market_data:
                 # Get ATM IV
-                atm_strike = self._round_to_strike(market_data['mid'])
+                atm_strike = self._round_to_strike(market_data["mid"])
                 expiry = self.ib_client.get_today_expiry_string()
                 atm_call_contract = await self.ib_client.get_mes_option_contract(
                     expiry, atm_strike, "C"
@@ -321,18 +321,20 @@ class EnhancedLottoGridStrategy(LottoGridStrategy):
 
                 # Initialize with real market data
                 await self.decision_engine.update_market_data(
-                    price=market_data['mid'],
-                    bid=market_data['bid'],
-                    ask=market_data['ask'],
-                    volume=market_data['volume'],
+                    price=market_data["mid"],
+                    bid=market_data["bid"],
+                    ask=market_data["ask"],
+                    volume=market_data["volume"],
                     atm_iv=atm_iv,
                     vix_level=await self._get_current_vix(),
                 )
 
                 logger.info("Decision engine initialized with real market data")
-                logger.debug(f"Market data: bid={market_data['bid']:.2f}, ask={market_data['ask']:.2f}, "
-                           f"mid={market_data['mid']:.2f}, volume={market_data['volume']}, "
-                           f"ATM IV={atm_iv:.3f}")
+                logger.debug(
+                    f"Market data: bid={market_data['bid']:.2f}, ask={market_data['ask']:.2f}, "
+                    f"mid={market_data['mid']:.2f}, volume={market_data['volume']}, "
+                    f"ATM IV={atm_iv:.3f}"
+                )
         except Exception as e:
             logger.error(f"Error initializing decision engine: {e}")
 
@@ -360,7 +362,7 @@ class EnhancedLottoGridStrategy(LottoGridStrategy):
                 return
 
             # Get ATM IV
-            atm_strike = self._round_to_strike(market_data['mid'])
+            atm_strike = self._round_to_strike(market_data["mid"])
             expiry = self.ib_client.get_today_expiry_string()
             atm_call_contract = await self.ib_client.get_mes_option_contract(
                 expiry, atm_strike, "C"
@@ -380,10 +382,10 @@ class EnhancedLottoGridStrategy(LottoGridStrategy):
 
             # Collect real market data
             await self.feature_collector.collect_market_data(
-                price=market_data['mid'],
-                bid=market_data['bid'],
-                ask=market_data['ask'],
-                volume=market_data['volume'],
+                price=market_data["mid"],
+                bid=market_data["bid"],
+                ask=market_data["ask"],
+                volume=market_data["volume"],
                 atm_iv=atm_iv,
                 implied_move=self.implied_move,
                 vix_level=await self._get_current_vix(),
@@ -392,7 +394,7 @@ class EnhancedLottoGridStrategy(LottoGridStrategy):
 
             # Calculate and store features with option chain data
             features_id = await self.feature_collector.calculate_and_store_features(
-                current_price=market_data['mid'],
+                current_price=market_data["mid"],
                 implied_move=self.implied_move,
                 vix_level=await self._get_current_vix(),
                 timestamp=current_time,

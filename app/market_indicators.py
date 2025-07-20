@@ -432,7 +432,11 @@ class MarketIndicatorEngine:
         )
 
     def calculate_all_features(
-        self, current_price: float, implied_move: float, vix_level: Optional[float] = None
+        self,
+        current_price: float,
+        implied_move: float,
+        vix_level: Optional[float] = None,
+        option_chain_data: Optional[Dict] = None,
     ) -> MarketFeatures:
         """Calculate comprehensive market features for ML models"""
         timestamp = datetime.utcnow()

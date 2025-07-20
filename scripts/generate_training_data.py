@@ -11,13 +11,12 @@ from pathlib import Path
 # Add parent directory to path
 sys.path.append(str(Path(__file__).parent.parent))
 
-from app.config import config
-from app.synthetic_data_generator import SyntheticDataGenerator
+from app.config import config  # noqa: E402
+from app.synthetic_data_generator import SyntheticDataGenerator  # noqa: E402
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -52,7 +51,9 @@ def main():
             logger.info(f"\nMarket Characteristics:")
             logger.info(f"  Avg IV Rank: {validation['market_characteristics']['avg_iv_rank']:.1f}")
             logger.info(f"  Avg VIX: {validation['market_characteristics']['avg_vix']:.1f}")
-            logger.info(f"  Regime Distribution: {validation['market_characteristics']['regime_distribution']}")
+            logger.info(
+                f"  Regime Distribution: {validation['market_characteristics']['regime_distribution']}"
+            )
 
             logger.info("\nSynthetic training data is now available for ML model training!")
 
