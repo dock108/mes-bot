@@ -5,7 +5,7 @@ Configuration management for the MES 0DTE Lotto-Grid Options Bot
 import os
 from dataclasses import dataclass
 from datetime import time
-from typing import Optional
+from typing import List, Optional
 
 import pytz
 from dotenv import load_dotenv
@@ -23,6 +23,12 @@ class IBConfig:
     client_id: int = int(os.getenv("IB_CLIENT_ID", "1"))
     username: str = os.getenv("IB_USERNAME", "")
     password: str = os.getenv("IB_PASSWORD", "")
+
+    # Contract management
+    mes_contract_month: Optional[str] = os.getenv("MES_CONTRACT_MONTH", None)  # None = auto-detect
+    contract_rollover_days: int = int(
+        os.getenv("CONTRACT_ROLLOVER_DAYS", "3")
+    )  # Days before expiry to roll
 
     @property
     def is_paper_trading(self) -> bool:
@@ -50,6 +56,17 @@ class TradingConfig:
     # Risk management parameters
     critical_equity_threshold: float = float(os.getenv("CRITICAL_EQUITY_THRESHOLD", "0.3"))
     consecutive_loss_limit: int = int(os.getenv("CONSECUTIVE_LOSS_LIMIT", "10"))
+
+    # Multi-instrument configuration
+    active_instruments: List[str] = None  # Set from environment or use default
+    primary_instrument: str = os.getenv("PRIMARY_INSTRUMENT", "MES")
+
+    def __post_init__(self):
+        """Post-init processing for instrument configuration"""
+        if self.active_instruments is None:
+            # Parse from environment variable or use default
+            env_instruments = os.getenv("ACTIVE_INSTRUMENTS", "MES")
+            self.active_instruments = [s.strip() for s in env_instruments.split(",")]
 
     @property
     def daily_loss_limit(self) -> float:
@@ -116,6 +133,77 @@ class LoggingConfig:
     error_log_file: str = "bot_errors.log"
     ib_log_file: str = "ib_messages.log"
 
+    # Structured logging configuration
+    structured_logging: bool = os.getenv("STRUCTURED_LOGGING", "true").lower() == "true"
+    json_format: bool = os.getenv("JSON_LOG_FORMAT", "true").lower() == "true"
+    correlation_ids: bool = os.getenv("CORRELATION_IDS", "true").lower() == "true"
+
+
+@dataclass
+class MLConfig:
+    """Machine Learning configuration"""
+
+    training_lookback_days: int = int(os.getenv("ML_TRAINING_LOOKBACK_DAYS", "30"))
+    min_training_samples: int = int(os.getenv("ML_MIN_TRAINING_SAMPLES", "100"))
+    retrain_interval_hours: int = int(os.getenv("ML_RETRAIN_INTERVAL_HOURS", "24"))
+    model_confidence_threshold: float = float(os.getenv("ML_CONFIDENCE_THRESHOLD", "0.6"))
+    ensemble_weight_ml: float = float(os.getenv("ML_ENSEMBLE_WEIGHT", "0.3"))
+    ensemble_weight_rules: float = float(os.getenv("RULES_ENSEMBLE_WEIGHT", "0.7"))
+
+
+@dataclass
+class DataConfig:
+    """Data storage configuration"""
+
+    cache_dir: str = os.getenv("DATA_CACHE_DIR", "./data/cache")
+
+
+@dataclass
+class NotificationConfig:
+    """Notification system configuration"""
+
+    # Enable notifications
+    enabled: bool = os.getenv("NOTIFICATIONS_ENABLED", "true").lower() == "true"
+
+    # Email settings
+    email_enabled: bool = os.getenv("EMAIL_NOTIFICATIONS_ENABLED", "true").lower() == "true"
+    smtp_host: str = os.getenv("SMTP_HOST", "smtp.gmail.com")
+    smtp_port: int = int(os.getenv("SMTP_PORT", "587"))
+    smtp_user: str = os.getenv("SMTP_USER", "")
+    smtp_password: str = os.getenv("SMTP_PASSWORD", "")
+    from_email: str = os.getenv("FROM_EMAIL", "")
+    to_emails: str = os.getenv("TO_EMAILS", "")  # Comma-separated list
+
+    # SMS settings (Twilio)
+    sms_enabled: bool = os.getenv("SMS_NOTIFICATIONS_ENABLED", "false").lower() == "true"
+    twilio_account_sid: str = os.getenv("TWILIO_ACCOUNT_SID", "")
+    twilio_auth_token: str = os.getenv("TWILIO_AUTH_TOKEN", "")
+    twilio_from_number: str = os.getenv("TWILIO_FROM_NUMBER", "")
+    twilio_to_numbers: str = os.getenv("TWILIO_TO_NUMBERS", "")  # Comma-separated list
+
+    # Slack settings
+    slack_enabled: bool = os.getenv("SLACK_NOTIFICATIONS_ENABLED", "false").lower() == "true"
+    slack_webhook_url: str = os.getenv("SLACK_WEBHOOK_URL", "")
+    slack_channel: str = os.getenv("SLACK_CHANNEL", "#trading-alerts")
+
+    # Webhook settings
+    webhook_enabled: bool = os.getenv("WEBHOOK_NOTIFICATIONS_ENABLED", "false").lower() == "true"
+    webhook_url: str = os.getenv("WEBHOOK_URL", "")
+
+    # Rate limiting
+    rate_limit_minutes: int = int(os.getenv("NOTIFICATION_RATE_LIMIT_MINUTES", "5"))
+    max_notifications_per_period: int = int(os.getenv("MAX_NOTIFICATIONS_PER_PERIOD", "10"))
+
+    @property
+    def to_emails_list(self) -> List[str]:
+        """Get to_emails as a list"""
+        return [email.strip() for email in self.to_emails.split(",") if email.strip()]
+
+    @property
+    def to_numbers_list(self) -> List[str]:
+        """Get to_numbers as a list"""
+        return [number.strip() for number in self.twilio_to_numbers.split(",") if number.strip()]
+
 
 class Config:
     """Main configuration class"""
@@ -127,6 +215,14 @@ class Config:
         self.database = DatabaseConfig()
         self.ui = UIConfig()
         self.logging = LoggingConfig()
+        self.ml = MLConfig()
+        self.data = DataConfig()
+        self.notifications = NotificationConfig()
+
+        # Initialize notification service if enabled
+        self.notification_service = None
+        if self.notifications.enabled:
+            self._initialize_notification_service()
 
     def validate(self) -> bool:
         """Validate configuration"""
@@ -168,6 +264,37 @@ class Config:
             )
 
         return True
+
+    def _initialize_notification_service(self):
+        """Initialize notification service"""
+        try:
+            from app.notification_service import NotificationConfig as NotifConfig
+            from app.notification_service import NotificationService
+
+            # Create notification service configuration
+            notif_config = NotifConfig(
+                smtp_host=self.notifications.smtp_host,
+                smtp_port=self.notifications.smtp_port,
+                smtp_user=self.notifications.smtp_user,
+                smtp_password=self.notifications.smtp_password,
+                from_email=self.notifications.from_email,
+                to_emails=self.notifications.to_emails_list,
+                twilio_account_sid=self.notifications.twilio_account_sid,
+                twilio_auth_token=self.notifications.twilio_auth_token,
+                twilio_from_number=self.notifications.twilio_from_number,
+                twilio_to_numbers=self.notifications.to_numbers_list,
+                slack_webhook_url=self.notifications.slack_webhook_url,
+                slack_channel=self.notifications.slack_channel,
+                webhook_url=self.notifications.webhook_url,
+                rate_limit_minutes=self.notifications.rate_limit_minutes,
+                max_notifications_per_period=self.notifications.max_notifications_per_period,
+            )
+
+            self.notification_service = NotificationService(notif_config)
+
+        except Exception as e:
+            print(f"Warning: Could not initialize notification service: {e}")
+            self.notification_service = None
 
     def __repr__(self):
         return f"<Config(mode={self.trading.trade_mode}, paper={self.ib.is_paper_trading})>"

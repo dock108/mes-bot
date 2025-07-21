@@ -20,6 +20,8 @@ from app.risk_manager import RiskManager
 from app.strategy import LottoGridStrategy
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestEnhancedLottoGridStrategy:
     """Test enhanced trading strategy with ML integration"""
 
@@ -46,7 +48,7 @@ class TestEnhancedLottoGridStrategy:
             }
         )
         client.is_market_hours = Mock(return_value=True)
-        client.get_today_expiry_string = Mock(return_value="20241213")
+        client.get_today_expiry_string = Mock(return_value=datetime.now().strftime("%Y%m%d"))
         client.get_mes_contract = AsyncMock(return_value=Mock())
         client.get_account_values = AsyncMock(return_value={"NetLiquidation": 10000.0})
         client.get_mes_option_contract = AsyncMock(return_value=Mock())
@@ -72,14 +74,30 @@ class TestEnhancedLottoGridStrategy:
         engine = create_engine(database_url)
         Base.metadata.create_all(engine)
 
-        strategy = EnhancedLottoGridStrategy(mock_ib_client, mock_risk_manager, database_url)
+        # Mock ML implementation to avoid file system operations
+        with patch("app.decision_engine.MLEnsembleImplementation") as mock_ml_impl:
+            mock_impl = Mock()
+            mock_impl.predict_entry_signal = AsyncMock(
+                return_value=(0.7, {"feature1": 0.3, "feature2": 0.4})
+            )
+            mock_impl.predict_exit_signal = AsyncMock(return_value=(0.6, {"exit_feature1": 0.2}))
+            mock_impl.optimize_strikes = AsyncMock(return_value=(4225.0, 4175.0))
+            mock_impl.get_model_status = Mock(
+                return_value={
+                    "entry_models": {"test_model": {"trained": True}},
+                    "exit_models": {"test_model": {"trained": True}},
+                    "total_predictions": 0,
+                }
+            )
+            mock_ml_impl.return_value = mock_impl
 
-        # Mock some internal components for testing
-        strategy.decision_engine = Mock(spec=DecisionEngine)
-        strategy.feature_collector = Mock(spec=FeatureCollector)
-        strategy.model_trainer = Mock(spec=ModelTrainer)
+            strategy = EnhancedLottoGridStrategy(mock_ib_client, mock_risk_manager, database_url)
 
-        return strategy
+            # Mock some internal components for testing
+            strategy.feature_collector = Mock(spec=FeatureCollector)
+            strategy.model_trainer = Mock(spec=ModelTrainer)
+
+            return strategy
 
     @pytest.mark.asyncio
     async def test_enhanced_initialization(self, enhanced_strategy, mock_ib_client):
@@ -391,8 +409,8 @@ class TestEnhancedLottoGridStrategy:
         assert result["ml_enhanced"] is True
 
         # Verify enhanced parameters were applied
-        mock_ib_client.place_strangle.assert_called_once()
-        call_args = mock_ib_client.place_strangle.call_args
+        mock_ib_client.place_strangle_legacy.assert_called_once()
+        call_args = mock_ib_client.place_strangle_legacy.call_args
         # Max premium should be adjusted by position multiplier
         # Original max_premium_per_strangle * 1.2
 
@@ -581,7 +599,9 @@ class TestEnhancedLottoGridStrategy:
             return_value=123
         )
         enhanced_strategy._get_current_vix = AsyncMock(return_value=20.0)
-        enhanced_strategy.ib_client.get_today_expiry_string = Mock(return_value="20241213")
+        enhanced_strategy.ib_client.get_today_expiry_string = Mock(
+            return_value=datetime.now().strftime("%Y%m%d")
+        )
         enhanced_strategy.ib_client.get_mes_option_contract = AsyncMock(return_value=Mock())
         enhanced_strategy._round_to_strike = Mock(return_value=4200.0)
 
@@ -690,6 +710,8 @@ class TestEnhancedLottoGridStrategy:
             session.close()
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestEnhancedStrategyIntegration:
     """Integration tests for enhanced strategy with real components"""
 
@@ -708,7 +730,9 @@ class TestEnhancedStrategyIntegration:
         mock_ib_client.get_current_price = AsyncMock(return_value=4200.0)
         mock_ib_client.get_atm_straddle_price = AsyncMock(return_value=(15.0, 12.0, 27.0))
         mock_ib_client.is_market_hours = Mock(return_value=True)
-        mock_ib_client.get_today_expiry_string = Mock(return_value="20241213")
+        mock_ib_client.get_today_expiry_string = Mock(
+            return_value=datetime.now().strftime("%Y%m%d")
+        )
         mock_ib_client.get_mes_contract = AsyncMock(return_value=Mock())
         mock_ib_client.get_account_values = AsyncMock(return_value={"NetLiquidation": 10000.0})
 
@@ -716,7 +740,24 @@ class TestEnhancedStrategyIntegration:
         mock_risk_manager.can_open_new_trade = Mock(return_value=(True, "Approved"))
         mock_risk_manager.set_daily_start_equity = Mock()
 
-        return EnhancedLottoGridStrategy(mock_ib_client, mock_risk_manager, database_url)
+        # Mock ML implementation to avoid file system operations
+        with patch("app.decision_engine.MLEnsembleImplementation") as mock_ml_impl:
+            mock_impl = Mock()
+            mock_impl.predict_entry_signal = AsyncMock(
+                return_value=(0.7, {"feature1": 0.3, "feature2": 0.4})
+            )
+            mock_impl.predict_exit_signal = AsyncMock(return_value=(0.6, {"exit_feature1": 0.2}))
+            mock_impl.optimize_strikes = AsyncMock(return_value=(4225.0, 4175.0))
+            mock_impl.get_model_status = Mock(
+                return_value={
+                    "entry_models": {"test_model": {"trained": True}},
+                    "exit_models": {"test_model": {"trained": True}},
+                    "total_predictions": 0,
+                }
+            )
+            mock_ml_impl.return_value = mock_impl
+
+            return EnhancedLottoGridStrategy(mock_ib_client, mock_risk_manager, database_url)
 
     @pytest.mark.asyncio
     async def test_complete_enhanced_workflow(self, integration_strategy):

@@ -43,6 +43,15 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
+class ModelConfig:
+    """Configuration for ML model training"""
+
+    model_type: str  # 'entry' or 'exit'
+    algorithm: str  # 'gradient_boosting', 'random_forest', 'neural_network'
+    hyperparameters: Dict[str, Any]
+
+
+@dataclass
 class ModelPerformance:
     """Container for model performance metrics"""
 
@@ -337,13 +346,23 @@ class StrikeOptimizationModel(BaseMLModel):
 class ModelTrainer:
     """Main class for training and managing ML models"""
 
-    def __init__(self, database_url: str):
+    def __init__(self, database_url: str, enable_versioning: bool = True):
         self.database_url = database_url
         self.session_maker = get_session_maker(database_url)
         self.feature_engineer = FeatureEngineer(database_url)
         self.data_quality_monitor = DataQualityMonitor(database_url)
 
-        # Model storage
+        # Model versioning
+        self.enable_versioning = enable_versioning
+        if enable_versioning:
+            # Import here to avoid circular imports during initialization
+            from app.model_versioning import ModelVersionManager
+
+            self.version_manager = ModelVersionManager(database_url)
+        else:
+            self.version_manager = None
+
+        # Model storage (legacy support)
         self.model_dir = Path("models")
         self.model_dir.mkdir(exist_ok=True)
 

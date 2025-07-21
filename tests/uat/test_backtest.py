@@ -10,6 +10,7 @@ from playwright.sync_api import Page, expect
 from tests.uat.helpers.dashboard_pages import BacktestPage, DashboardPage
 
 
+@pytest.mark.uat
 class TestBacktestingWorkflow:
     """Test backtesting functionality and user workflow"""
 

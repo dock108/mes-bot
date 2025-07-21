@@ -8,6 +8,7 @@ from playwright.sync_api import Page, expect
 from tests.uat.helpers.dashboard_pages import DashboardPage
 
 
+@pytest.mark.uat
 class TestDashboardUI:
     """Test dashboard UI components and basic functionality"""
 

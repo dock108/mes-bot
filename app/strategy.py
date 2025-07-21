@@ -1,5 +1,5 @@
 """
-Core trading strategy logic for MES 0DTE Lotto-Grid Options Bot
+Core trading strategy logic for 0DTE Lotto-Grid Options Bot
 """
 
 import asyncio
@@ -10,6 +10,7 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 from sqlalchemy.orm import Session
 
+from app.base_strategy import MultiInstrumentStrategy
 from app.config import config
 from app.ib_client import IBClient
 from app.models import Trade, get_session_maker
@@ -18,9 +19,9 @@ from app.risk_manager import RiskManager
 logger = logging.getLogger(__name__)
 
 
-class LottoGridStrategy:
+class LottoGridStrategy(MultiInstrumentStrategy):
     """
-    Implements the 0DTE MES options strangle strategy:
+    Implements the 0DTE options strangle strategy for multiple instruments:
     - Calculate implied move from ATM straddle
     - Place OTM strangles when realized volatility < implied
     - Target 4x profit, accept 100% loss
@@ -28,52 +29,32 @@ class LottoGridStrategy:
     """
 
     def __init__(self, ib_client: IBClient, risk_manager: RiskManager, database_url: str):
-        self.ib_client = ib_client
-        self.risk_manager = risk_manager
-        self.session_maker = get_session_maker(database_url)
-
-        # Strategy state
-        self.implied_move = None
-        self.underlying_price = None
-        self.last_trade_time = None
-        self.daily_high = None
-        self.daily_low = None
-        self.session_start_time = datetime.utcnow()
-
-        # Price history for volatility calculation
-        self.price_history = []
-        self.max_history_length = 100  # Keep last 100 price points
+        super().__init__(ib_client, risk_manager, database_url)
 
     async def initialize_daily_session(self) -> bool:
         """Initialize strategy for the trading day"""
         try:
             logger.info("Initializing daily trading session...")
 
-            # Get current MES price
-            mes_contract = await self.ib_client.get_mes_contract()
-            current_price = await self.ib_client.get_current_price(mes_contract)
+            # Initialize each active instrument
+            successful_inits = 0
+            for symbol in self.get_active_symbols():
+                try:
+                    success = await self.initialize_instrument_session(symbol)
+                    if success:
+                        successful_inits += 1
+                    else:
+                        logger.error(f"Failed to initialize {symbol}")
+                except Exception as e:
+                    logger.error(f"Error initializing {symbol}: {e}")
 
-            if not current_price:
-                logger.error("Could not get current MES price")
+            if successful_inits == 0:
+                logger.error("Failed to initialize any instruments")
                 return False
 
-            self.underlying_price = current_price
-            self.daily_high = current_price
-            self.daily_low = current_price
-
-            # Calculate implied move from ATM straddle
-            expiry = self.ib_client.get_today_expiry_string()
-            call_price, put_price, implied_move = await self.ib_client.get_atm_straddle_price(
-                current_price, expiry
+            logger.info(
+                f"Successfully initialized {successful_inits}/{len(self.get_active_symbols())} instruments"
             )
-
-            self.implied_move = implied_move
-
-            logger.info(f"Daily session initialized:")
-            logger.info(f"  MES Price: ${current_price:.2f}")
-            logger.info(f"  ATM Call: ${call_price:.2f}")
-            logger.info(f"  ATM Put: ${put_price:.2f}")
-            logger.info(f"  Implied Move: ${implied_move:.2f}")
 
             # Set starting equity for risk management
             account_values = await self.ib_client.get_account_values()
@@ -86,103 +67,135 @@ class LottoGridStrategy:
             logger.error(f"Failed to initialize daily session: {e}")
             return False
 
-    def update_price_history(self, price: float):
-        """Update price history for volatility calculations"""
-        timestamp = datetime.utcnow()
-        self.price_history.append((timestamp, price))
+    async def initialize_instrument_session(self, symbol: str) -> bool:
+        """Initialize session for a specific instrument"""
+        try:
+            logger.info(f"Initializing {symbol} session...")
 
-        # Keep only recent history
-        if len(self.price_history) > self.max_history_length:
-            self.price_history = self.price_history[-self.max_history_length :]
+            # Get current price
+            current_price = await self.get_current_price(symbol)
+            if not current_price:
+                logger.error(f"Could not get current {symbol} price")
+                return False
 
-        # Update daily high/low
-        if self.daily_high is None or price > self.daily_high:
-            self.daily_high = price
-        if self.daily_low is None or price < self.daily_low:
-            self.daily_low = price
+            # Update instrument state
+            self.update_instrument_state(
+                symbol,
+                underlying_price=current_price,
+                daily_high=current_price,
+                daily_low=current_price,
+            )
 
-    def calculate_realized_range(self, lookback_minutes: int = 60) -> float:
-        """Calculate realized price range over lookback period"""
-        if len(self.price_history) < 2:
-            return 0.0
+            # Update price history
+            self.update_price_history(symbol, current_price)
 
-        cutoff_time = datetime.utcnow() - timedelta(minutes=lookback_minutes)
-        recent_prices = [
-            price for timestamp, price in self.price_history if timestamp >= cutoff_time
-        ]
+            # Calculate implied move from ATM straddle
+            expiry = self.ib_client.get_today_expiry_string()
+            call_price, put_price, implied_move = await self.get_atm_straddle_price(
+                symbol, current_price, expiry
+            )
 
-        if len(recent_prices) < 2:
-            return 0.0
+            self.update_instrument_state(symbol, implied_move=implied_move)
 
-        return max(recent_prices) - min(recent_prices)
+            logger.info(f"{symbol} session initialized:")
+            logger.info(f"  {symbol} Price: ${current_price:.2f}")
+            logger.info(f"  ATM Call: ${call_price:.2f}")
+            logger.info(f"  ATM Put: ${put_price:.2f}")
+            logger.info(f"  Implied Move: ${implied_move:.2f}")
 
-    def should_place_trade(self) -> Tuple[bool, str]:
-        """Determine if conditions are met to place a new strangle"""
+            return True
 
-        if not self.implied_move:
-            return False, "Implied move not calculated"
+        except Exception as e:
+            logger.error(f"Failed to initialize {symbol} session: {e}")
+            return False
 
-        # Check minimum time between trades
-        if self.last_trade_time:
-            time_since_last = datetime.utcnow() - self.last_trade_time
+    async def execute_instrument_cycle(self, symbol: str) -> bool:
+        """Execute trading cycle for specific instrument"""
+        try:
+            # Update current price
+            current_price = await self.get_current_price(symbol)
+            if current_price:
+                self.update_price_history(symbol, current_price)
+
+            # Check if we should place a trade
+            should_trade, reason = self.should_place_trade_for_symbol(symbol)
+            if not should_trade:
+                logger.debug(f"{symbol}: {reason}")
+                return False
+
+            # Calculate strike levels
+            strike_levels = self.calculate_strike_levels(symbol, current_price)
+            if not strike_levels:
+                logger.warning(f"{symbol}: No strike levels calculated")
+                return False
+
+            # Try to place a strangle trade
+            call_strike, put_strike = strike_levels[0]  # Use first level
+            trade_result = await self.place_strangle_trade_for_symbol(
+                symbol, call_strike, put_strike
+            )
+
+            if trade_result:
+                logger.info(f"{symbol}: Successfully placed strangle trade")
+                self.update_instrument_state(symbol, last_trade_time=datetime.utcnow())
+                return True
+            else:
+                logger.warning(f"{symbol}: Failed to place strangle trade")
+                return False
+
+        except Exception as e:
+            logger.error(f"Error executing trading cycle for {symbol}: {e}")
+            return False
+
+    def should_place_trade_for_symbol(self, symbol: str) -> Tuple[bool, str]:
+        """Determine if conditions are met to place a new strangle for instrument"""
+        state = self.get_instrument_state(symbol)
+        spec = self.get_instrument_spec(symbol)
+
+        if not state["implied_move"]:
+            return False, f"{symbol}: Implied move not calculated"
+
+        # Check minimum time between trades for this instrument
+        if state["last_trade_time"]:
+            time_since_last = datetime.utcnow() - state["last_trade_time"]
             min_gap = timedelta(minutes=config.trading.min_time_between_trades)
             if time_since_last < min_gap:
                 remaining = min_gap - time_since_last
                 return (
                     False,
-                    f"Too soon since last trade (wait {remaining.seconds // 60} more minutes)",
+                    f"{symbol}: Too soon since last trade (wait {remaining.seconds // 60} more minutes)",
                 )
 
-        # Check if realized volatility is low enough
-        realized_range = self.calculate_realized_range(60)  # Last 60 minutes
-        volatility_threshold = self.implied_move * config.trading.volatility_threshold
+        # Check if realized volatility is low enough using instrument-specific threshold
+        realized_range = self.calculate_realized_range(symbol, 60)  # Last 60 minutes
+        volatility_threshold = state["implied_move"] * spec.volatility_threshold
 
         if realized_range >= volatility_threshold:
             return (
                 False,
-                f"Realized range {realized_range:.2f} >= threshold {volatility_threshold:.2f}",
+                f"{symbol}: Realized range {realized_range:.2f} >= threshold {volatility_threshold:.2f}",
             )
 
         # Check market hours
         if not self.ib_client.is_market_hours():
-            return False, "Outside market hours"
+            return False, f"{symbol}: Outside market hours"
 
-        logger.info(f"Trade conditions met:")
+        logger.info(f"{symbol}: Trade conditions met:")
         logger.info(f"  Realized range (60m): {realized_range:.2f}")
         logger.info(f"  Volatility threshold: {volatility_threshold:.2f}")
-        logger.info(f"  Implied move: {self.implied_move:.2f}")
+        logger.info(f"  Implied move: {state['implied_move']:.2f}")
 
-        return True, "Conditions met for new strangle"
+        return True, f"{symbol}: Conditions met for trade"
 
-    def calculate_strike_levels(self, current_price: float) -> List[Tuple[float, float]]:
-        """Calculate strike levels for strangles based on implied move"""
-        if not self.implied_move:
-            return []
-
-        strike_pairs = []
-
-        # Level 1: 1.25x implied move
-        offset_1 = self.implied_move * config.trading.implied_move_multiplier_1
-        call_strike_1 = self._round_to_strike(current_price + offset_1)
-        put_strike_1 = self._round_to_strike(current_price - offset_1)
-        strike_pairs.append((call_strike_1, put_strike_1))
-
-        # Level 2: 1.5x implied move
-        offset_2 = self.implied_move * config.trading.implied_move_multiplier_2
-        call_strike_2 = self._round_to_strike(current_price + offset_2)
-        put_strike_2 = self._round_to_strike(current_price - offset_2)
-        strike_pairs.append((call_strike_2, put_strike_2))
-
-        return strike_pairs
-
-    def _round_to_strike(self, price: float) -> float:
-        """Round price to nearest valid option strike (25-point increments for MES)"""
-        return round(price / 25) * 25
-
-    async def place_strangle_trade(self, call_strike: float, put_strike: float) -> Optional[Dict]:
-        """Place a single strangle trade"""
+    async def place_strangle_trade_for_symbol(
+        self, symbol: str, call_strike: float, put_strike: float
+    ) -> Optional[Dict]:
+        """Place a single strangle trade for specific instrument"""
         try:
-            logger.info(f"Attempting to place strangle: {call_strike}C / {put_strike}P")
+            logger.info(f"Attempting to place {symbol} strangle: {call_strike}C / {put_strike}P")
+
+            spec = self.get_instrument_spec(symbol)
+            state = self.get_instrument_state(symbol)
 
             # Get current account equity
             account_values = await self.ib_client.get_account_values()
@@ -190,137 +203,314 @@ class LottoGridStrategy:
 
             # Get estimated premium cost
             expiry = self.ib_client.get_today_expiry_string()
-            call_contract = await self.ib_client.get_mes_option_contract(expiry, call_strike, "C")
-            put_contract = await self.ib_client.get_mes_option_contract(expiry, put_strike, "P")
+            call_contract = await self.ib_client.get_option_contract(
+                symbol, expiry, call_strike, "C"
+            )
+            put_contract = await self.ib_client.get_option_contract(symbol, expiry, put_strike, "P")
 
             call_price = await self.ib_client.get_current_price(call_contract)
             put_price = await self.ib_client.get_current_price(put_contract)
 
             if not call_price or not put_price:
-                logger.warning("Could not get option prices for strangle")
+                logger.warning(f"Could not get option prices for {symbol} strangle")
                 return None
 
-            estimated_premium = (call_price + put_price) * 5  # MES multiplier
+            estimated_premium = (call_price + put_price) * spec.option_multiplier
 
             # Risk check
             can_trade, reason = self.risk_manager.can_open_new_trade(
                 estimated_premium, current_equity
             )
             if not can_trade:
-                logger.warning(f"Risk check failed: {reason}")
+                logger.warning(f"{symbol}: Risk check failed: {reason}")
                 return None
 
             # Place the strangle
             strangle_result = await self.ib_client.place_strangle(
-                self.underlying_price,
+                symbol,
+                state["underlying_price"],
                 call_strike,
                 put_strike,
                 expiry,
-                config.trading.max_premium_per_strangle,
+                spec.max_option_premium * spec.option_multiplier,
             )
 
-            # Record trade in database
-            trade_record = await self._record_trade(strangle_result)
+            # Record the trade
+            trade_record = await self.record_trade(symbol, strangle_result)
 
-            self.last_trade_time = datetime.utcnow()
-
-            logger.info(f"Strangle placed successfully:")
-            logger.info(f"  Call: {call_strike} @ ${call_price:.2f}")
-            logger.info(f"  Put: {put_strike} @ ${put_price:.2f}")
-            logger.info(f"  Total Premium: ${estimated_premium:.2f}")
-            logger.info(f"  Trade ID: {trade_record.id}")
-
-            return {"trade_record": trade_record, "strangle_result": strangle_result}
+            return {
+                "trade_record": trade_record,
+                "strangle_result": strangle_result,
+            }
 
         except Exception as e:
-            logger.error(f"Error placing strangle trade: {e}")
+            logger.error(f"Error placing {symbol} strangle trade: {e}")
             return None
 
-    async def _record_trade(self, strangle_result: Dict) -> Trade:
-        """Record trade in database"""
-        session = self.session_maker()
+    async def record_trade(self, symbol: str, strangle_result: Dict) -> Trade:
+        """Record a trade in the database"""
         try:
-            trade = Trade(
-                date=datetime.utcnow().date(),
-                entry_time=datetime.utcnow(),
-                underlying_symbol="MES",
-                underlying_price_at_entry=self.underlying_price,
-                implied_move=self.implied_move,
-                call_strike=strangle_result["call_strike"],
-                put_strike=strangle_result["put_strike"],
-                call_premium=strangle_result["call_price"],
-                put_premium=strangle_result["put_price"],
-                total_premium=strangle_result["total_premium"],
-                status="OPEN",
-                call_status="OPEN",
-                put_status="OPEN",
-            )
+            state = self.get_instrument_state(symbol)
+            spec = self.get_instrument_spec(symbol)
 
-            # Store IB order IDs if available
-            if strangle_result.get("call_trades"):
-                call_entry_trade = strangle_result["call_trades"][0]  # Entry order
-                trade.call_order_id = call_entry_trade.order.orderId
-                if len(strangle_result["call_trades"]) > 1:
-                    trade.call_tp_order_id = strangle_result["call_trades"][1].order.orderId
+            session = self.session_maker()
+            try:
+                trade = Trade(
+                    date=datetime.utcnow().date(),
+                    entry_time=datetime.utcnow(),
+                    underlying_symbol=symbol,
+                    underlying_price_at_entry=state["underlying_price"],
+                    implied_move=state["implied_move"],
+                    call_strike=strangle_result["call_strike"],
+                    put_strike=strangle_result["put_strike"],
+                    call_premium=strangle_result["call_price"],
+                    put_premium=strangle_result["put_price"],
+                    total_premium=strangle_result["total_premium"],
+                    call_order_id=(
+                        strangle_result["call_trades"][0].order.orderId
+                        if strangle_result["call_trades"]
+                        else None
+                    ),
+                    put_order_id=(
+                        strangle_result["put_trades"][0].order.orderId
+                        if strangle_result["put_trades"]
+                        else None
+                    ),
+                    status="OPEN",
+                )
 
-            if strangle_result.get("put_trades"):
-                put_entry_trade = strangle_result["put_trades"][0]  # Entry order
-                trade.put_order_id = put_entry_trade.order.orderId
-                if len(strangle_result["put_trades"]) > 1:
-                    trade.put_tp_order_id = strangle_result["put_trades"][1].order.orderId
+                session.add(trade)
+                session.commit()
 
-            session.add(trade)
-            session.commit()
+                logger.info(f"Recorded {symbol} trade: ID {trade.id}")
+                return trade
 
-            logger.info(f"Trade recorded with ID: {trade.id}")
-            return trade
+            finally:
+                session.close()
 
         except Exception as e:
-            logger.error(f"Error recording trade: {e}")
-            session.rollback()
+            logger.error(f"Error recording {symbol} trade: {e}")
             raise
-        finally:
-            session.close()
+
+    # Note: execute_trading_cycle is now handled by the base class MultiInstrumentStrategy
+
+    # Backward compatibility properties and methods for existing tests
+    @property
+    def underlying_price(self) -> Optional[float]:
+        """Get underlying price for primary instrument (backward compatibility)"""
+        primary_symbol = config.trading.primary_instrument
+        if primary_symbol in self.instrument_state:
+            return self.instrument_state[primary_symbol]["underlying_price"]
+        return None
+
+    @underlying_price.setter
+    def underlying_price(self, value: float):
+        """Set underlying price for primary instrument (backward compatibility)"""
+        primary_symbol = config.trading.primary_instrument
+        if primary_symbol in self.instrument_state:
+            self.instrument_state[primary_symbol]["underlying_price"] = value
+
+    @property
+    def implied_move(self) -> Optional[float]:
+        """Get implied move for primary instrument (backward compatibility)"""
+        primary_symbol = config.trading.primary_instrument
+        if primary_symbol in self.instrument_state:
+            return self.instrument_state[primary_symbol]["implied_move"]
+        return None
+
+    @implied_move.setter
+    def implied_move(self, value: float):
+        """Set implied move for primary instrument (backward compatibility)"""
+        primary_symbol = config.trading.primary_instrument
+        if primary_symbol in self.instrument_state:
+            self.instrument_state[primary_symbol]["implied_move"] = value
+
+    @property
+    def daily_high(self) -> Optional[float]:
+        """Get daily high for primary instrument (backward compatibility)"""
+        primary_symbol = config.trading.primary_instrument
+        if primary_symbol in self.instrument_state:
+            return self.instrument_state[primary_symbol]["daily_high"]
+        return None
+
+    @daily_high.setter
+    def daily_high(self, value: float):
+        """Set daily high for primary instrument (backward compatibility)"""
+        primary_symbol = config.trading.primary_instrument
+        if primary_symbol in self.instrument_state:
+            self.instrument_state[primary_symbol]["daily_high"] = value
+
+    @property
+    def daily_low(self) -> Optional[float]:
+        """Get daily low for primary instrument (backward compatibility)"""
+        primary_symbol = config.trading.primary_instrument
+        if primary_symbol in self.instrument_state:
+            return self.instrument_state[primary_symbol]["daily_low"]
+        return None
+
+    @daily_low.setter
+    def daily_low(self, value: float):
+        """Set daily low for primary instrument (backward compatibility)"""
+        primary_symbol = config.trading.primary_instrument
+        if primary_symbol in self.instrument_state:
+            self.instrument_state[primary_symbol]["daily_low"] = value
+
+    @property
+    def price_history(self) -> List:
+        """Get price history for primary instrument (backward compatibility)"""
+        primary_symbol = config.trading.primary_instrument
+        if primary_symbol in self.instrument_state:
+            return self.instrument_state[primary_symbol]["price_history"]
+        return []
+
+    @price_history.setter
+    def price_history(self, value: List):
+        """Set price history for primary instrument (backward compatibility)"""
+        primary_symbol = config.trading.primary_instrument
+        if primary_symbol in self.instrument_state:
+            self.instrument_state[primary_symbol]["price_history"] = value
+
+    @property  # type: ignore[override]
+    def last_trade_time(self) -> Optional[datetime]:
+        """Get last trade time for primary instrument (backward compatibility)"""
+        primary_symbol = config.trading.primary_instrument
+        if primary_symbol in self.instrument_state:
+            return self.instrument_state[primary_symbol]["last_trade_time"]
+        return None
+
+    @last_trade_time.setter
+    def last_trade_time(self, value: Optional[datetime]):
+        """Set last trade time for primary instrument (backward compatibility)"""
+        primary_symbol = config.trading.primary_instrument
+        if primary_symbol in self.instrument_state:
+            self.instrument_state[primary_symbol]["last_trade_time"] = value
+
+    def update_price_history(self, symbol_or_price, price=None):
+        """Update price history (backward compatibility)"""
+        if price is None:
+            # Old API: update_price_history(price)
+            primary_symbol = config.trading.primary_instrument
+            super().update_price_history(primary_symbol, symbol_or_price)
+        else:
+            # New API: update_price_history(symbol, price)
+            super().update_price_history(symbol_or_price, price)
+
+    def calculate_realized_range(
+        self, symbol_or_lookback=None, lookback_minutes: int = 60
+    ) -> float:
+        """Calculate realized range for primary instrument (backward compatibility)"""
+        if symbol_or_lookback is None:
+            # Old API: calculate_realized_range() with default lookback
+            primary_symbol = config.trading.primary_instrument
+            return super().calculate_realized_range(primary_symbol, lookback_minutes)
+        elif isinstance(symbol_or_lookback, str):
+            # New API: calculate_realized_range(symbol, lookback_minutes)
+            return super().calculate_realized_range(symbol_or_lookback, lookback_minutes)
+        else:
+            # Old API: calculate_realized_range(lookback_minutes)
+            primary_symbol = config.trading.primary_instrument
+            return super().calculate_realized_range(primary_symbol, symbol_or_lookback)
+
+    def calculate_strike_levels(
+        self, symbol_or_price, underlying_price: float = None
+    ) -> List[Tuple[float, float]]:
+        """Calculate strike levels for primary instrument (backward compatibility)"""
+        if underlying_price is None:
+            # Old API: calculate_strike_levels(underlying_price)
+            primary_symbol = config.trading.primary_instrument
+            return super().calculate_strike_levels(primary_symbol, symbol_or_price)
+        else:
+            # New API: calculate_strike_levels(symbol, underlying_price)
+            return super().calculate_strike_levels(symbol_or_price, underlying_price)
+
+    def _round_to_strike(self, price: float) -> float:
+        """Round to strike for primary instrument (backward compatibility)"""
+        primary_symbol = config.trading.primary_instrument
+        return self.instrument_manager.round_to_strike(primary_symbol, price)
+
+    def should_place_trade(self, symbol: str = None) -> Tuple[bool, str]:
+        """Determine if conditions are met to place trade (backward compatibility)"""
+        if symbol is None:
+            symbol = config.trading.primary_instrument
+        return self.should_place_trade_for_symbol(symbol)
+
+    async def place_strangle_trade(self, call_strike: float, put_strike: float) -> Optional[Dict]:
+        """Place strangle trade for primary instrument (backward compatibility)"""
+        primary_symbol = config.trading.primary_instrument
+        return await self.place_strangle_trade_for_symbol(primary_symbol, call_strike, put_strike)
 
     async def execute_trading_cycle(self) -> bool:
-        """Execute one trading cycle - check conditions and place trades if appropriate"""
+        """Execute trading cycle for primary instrument (backward compatibility)"""
+        primary_symbol = config.trading.primary_instrument
+
+        # For backward compatibility, use the underlying_price if available
+        # instead of calling get_current_price
         try:
-            # Update current price
-            mes_contract = await self.ib_client.get_mes_contract()
-            current_price = await self.ib_client.get_current_price(mes_contract)
-
-            if not current_price:
-                logger.warning("Could not get current price")
-                return False
-
-            self.underlying_price = current_price
-            self.update_price_history(current_price)
+            current_price = self.underlying_price
+            if current_price:
+                self.update_price_history(current_price)
 
             # Check if we should place a trade
             should_trade, reason = self.should_place_trade()
-
             if not should_trade:
-                logger.debug(f"Not placing trade: {reason}")
+                logger.debug(f"Trade conditions not met: {reason}")
                 return False
 
-            # Calculate strike levels
-            strike_pairs = self.calculate_strike_levels(current_price)
-            if not strike_pairs:
+            # Calculate strike levels using current price
+            strike_levels = self.calculate_strike_levels(current_price)
+            if not strike_levels:
                 logger.warning("No strike levels calculated")
                 return False
 
-            # For now, use the first strike level (1.25x implied move)
-            # Could be enhanced to rotate between levels or use multiple
-            call_strike, put_strike = strike_pairs[0]
+            # Try to place a strangle trade
+            call_strike, put_strike = strike_levels[0]  # Use first level
+            trade_result = await self.place_strangle_trade(call_strike, put_strike)
 
-            # Place the strangle
-            result = await self.place_strangle_trade(call_strike, put_strike)
-
-            return result is not None
+            if trade_result:
+                logger.info("Successfully placed strangle trade")
+                self.last_trade_time = datetime.utcnow()
+                return True
+            else:
+                logger.warning("Failed to place strangle trade")
+                return False
 
         except Exception as e:
-            logger.error(f"Error in trading cycle: {e}")
+            logger.error(f"Error executing trading cycle: {e}")
             return False
+
+    def get_strategy_status(self) -> Dict:
+        """Get strategy status with backward compatibility"""
+        primary_symbol = config.trading.primary_instrument
+
+        # Get base status
+        base_status = super().get_strategy_status()
+
+        # Add backward compatibility fields
+        if primary_symbol in self.instrument_state:
+            state = self.instrument_state[primary_symbol]
+            base_status.update(
+                {
+                    "underlying_price": state["underlying_price"],
+                    "implied_move": state["implied_move"],
+                    "daily_high": state["daily_high"],
+                    "daily_low": state["daily_low"],
+                    "daily_range": (
+                        state["daily_high"] - state["daily_low"]
+                        if state["daily_high"] and state["daily_low"]
+                        else None
+                    ),
+                    "realized_range_60m": self.calculate_realized_range(60),
+                    "volatility_threshold": (
+                        state["implied_move"]
+                        * self.get_instrument_spec(primary_symbol).volatility_threshold
+                        if state["implied_move"]
+                        else None
+                    ),
+                    "price_history_length": len(state["price_history"]),
+                }
+            )
+
+        return base_status
 
     async def update_open_positions(self):
         """Update P&L and status of open positions"""
@@ -437,20 +627,3 @@ class LottoGridStrategy:
 
         except Exception as e:
             logger.error(f"Error closing trade {trade.id}: {e}")
-
-    def get_strategy_status(self) -> Dict:
-        """Get current strategy status for monitoring"""
-        return {
-            "timestamp": datetime.utcnow(),
-            "underlying_price": self.underlying_price,
-            "implied_move": self.implied_move,
-            "daily_high": self.daily_high,
-            "daily_low": self.daily_low,
-            "daily_range": (
-                (self.daily_high - self.daily_low) if (self.daily_high and self.daily_low) else 0
-            ),
-            "realized_range_60m": self.calculate_realized_range(60),
-            "last_trade_time": self.last_trade_time,
-            "session_start": self.session_start_time,
-            "price_history_length": len(self.price_history),
-        }

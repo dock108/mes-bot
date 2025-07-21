@@ -8,6 +8,7 @@ from playwright.sync_api import Page, expect
 from tests.uat.helpers.dashboard_pages import DashboardPage, LiveMonitorPage
 
 
+@pytest.mark.uat
 class TestManualTradingMode:
     """Test manual trading mode functionality and opportunity scanner"""
 

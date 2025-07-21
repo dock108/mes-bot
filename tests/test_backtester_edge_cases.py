@@ -12,6 +12,8 @@ from app.backtester import BlackScholesCalculator, LottoGridBacktester
 from app.data_providers.vix_provider import VIXProvider
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestBacktesterEdgeCases:
     """Test edge cases in backtester.py"""
 

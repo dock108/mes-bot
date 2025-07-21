@@ -12,6 +12,8 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 import pandas as pd
 
+from app.technical_indicators import TechnicalIndicators as TI
+
 logger = logging.getLogger(__name__)
 
 
@@ -34,6 +36,7 @@ class MarketFeatures:
     iv_term_structure: float
 
     # Technical indicators
+    rsi_5m: float
     rsi_15m: float
     rsi_30m: float
     macd_signal: float
@@ -59,6 +62,7 @@ class MarketFeatures:
     vix_term_structure: float
     market_correlation: float
     volume_profile: float
+    market_regime: str  # e.g., "normal", "high_vol", "low_vol", "extreme"
 
     # Time-based features
     time_of_day: float
@@ -70,6 +74,10 @@ class MarketFeatures:
     win_rate_recent: float
     profit_factor_recent: float
     sharpe_ratio_recent: float
+
+    # Basic market data
+    price: float
+    volume: float
 
     timestamp: datetime
 
@@ -424,7 +432,11 @@ class MarketIndicatorEngine:
         )
 
     def calculate_all_features(
-        self, current_price: float, implied_move: float, vix_level: Optional[float] = None
+        self,
+        current_price: float,
+        implied_move: float,
+        vix_level: Optional[float] = None,
+        option_chain_data: Optional[Dict] = None,
     ) -> MarketFeatures:
         """Calculate comprehensive market features for ML models"""
         timestamp = datetime.utcnow()
@@ -447,27 +459,44 @@ class MarketIndicatorEngine:
         atm_iv = self.option_data[-1]["atm_iv"] if self.option_data else 0.0
         iv_rank = self.volatility_analyzer.calculate_volatility_rank(atm_iv)
 
-        # Technical indicators
+        # Technical indicators using enhanced calculations
+        prices_5m = [price for _, price in list(self.price_data["5m"])]
         prices_15m = [price for _, price in list(self.price_data["15m"])]
         prices_30m = [price for _, price in list(self.price_data["30m"])]
         prices_60m = [price for _, price in list(self.price_data["60m"])]
 
-        rsi_15m = self.technical_indicators.rsi(prices_15m, 14)
-        rsi_30m = self.technical_indicators.rsi(prices_30m, 14)
+        # Convert to pandas Series for enhanced technical indicators
+        prices_5m_series = pd.Series(prices_5m) if prices_5m else pd.Series([current_price])
+        prices_15m_series = pd.Series(prices_15m) if prices_15m else pd.Series([current_price])
+        prices_30m_series = pd.Series(prices_30m) if prices_30m else pd.Series([current_price])
+        prices_60m_series = pd.Series(prices_60m) if prices_60m else pd.Series([current_price])
 
-        macd_line, macd_signal, macd_histogram = self.technical_indicators.macd(prices_60m)
+        # RSI using enhanced calculation
+        rsi_5m = TI.calculate_rsi(prices_5m_series, 14)
+        rsi_15m = TI.calculate_rsi(prices_15m_series, 14)
+        rsi_30m = TI.calculate_rsi(prices_30m_series, 14)
 
-        # Bollinger Bands
-        bb_upper, bb_middle, bb_lower = self.technical_indicators.bollinger_bands(prices_30m)
-        bb_position = (
-            (current_price - bb_lower) / (bb_upper - bb_lower) if bb_upper != bb_lower else 0.5
+        # MACD using enhanced calculation
+        macd_line, macd_signal, macd_histogram = TI.calculate_macd(prices_60m_series)
+
+        # Bollinger Bands using enhanced calculation
+        bb_upper, bb_middle, bb_lower, bb_position, bb_squeeze = TI.calculate_bollinger_bands(
+            prices_30m_series
         )
-        bb_squeeze = (bb_upper - bb_lower) / bb_middle if bb_middle > 0 else 0.0
 
-        # Price momentum
-        price_momentum_15m = self._calculate_momentum(prices_15m, 15)
-        price_momentum_30m = self._calculate_momentum(prices_30m, 30)
-        price_momentum_60m = self._calculate_momentum(prices_60m, 60)
+        # Price momentum using enhanced calculation
+        price_momentum_15m = TI.calculate_momentum(prices_15m_series, 10) / 100.0  # Normalize
+        price_momentum_30m = TI.calculate_momentum(prices_30m_series, 10) / 100.0
+        price_momentum_60m = TI.calculate_momentum(prices_60m_series, 10) / 100.0
+
+        # Support and resistance
+        support_levels, resistance_levels, sr_strength = TI.calculate_support_resistance(
+            prices_30m_series, window=20, num_levels=3
+        )
+        support_resistance_strength = float(sr_strength)
+
+        # Mean reversion signal
+        mean_reversion_signal = TI.calculate_mean_reversion_signal(prices_30m_series, lookback=20)
 
         # Market microstructure
         bid_ask_spread = self.microstructure.get_avg_bid_ask_spread(30)
@@ -495,18 +524,19 @@ class MarketIndicatorEngine:
             iv_skew=0.0,  # Placeholder
             iv_term_structure=0.0,  # Placeholder
             # Technical indicators
+            rsi_5m=rsi_5m,
             rsi_15m=rsi_15m,
             rsi_30m=rsi_30m,
-            macd_signal=macd_signal,
-            macd_histogram=macd_histogram,
-            bb_position=bb_position,
-            bb_squeeze=bb_squeeze,
+            macd_signal=float(macd_signal),
+            macd_histogram=float(macd_histogram),
+            bb_position=float(bb_position),
+            bb_squeeze=float(bb_squeeze),
             # Price action features
             price_momentum_15m=price_momentum_15m,
             price_momentum_30m=price_momentum_30m,
             price_momentum_60m=price_momentum_60m,
-            support_resistance_strength=0.0,  # Placeholder
-            mean_reversion_signal=0.0,  # Placeholder
+            support_resistance_strength=support_resistance_strength,
+            mean_reversion_signal=mean_reversion_signal,
             # Market microstructure
             bid_ask_spread=bid_ask_spread,
             option_volume_ratio=0.0,  # Placeholder
@@ -517,6 +547,7 @@ class MarketIndicatorEngine:
             vix_term_structure=0.0,  # Placeholder
             market_correlation=0.0,  # Placeholder
             volume_profile=volume_profile,
+            market_regime="normal",  # Default regime, could be determined by VIX level
             # Time-based features
             time_of_day=time_of_day,
             day_of_week=day_of_week,
@@ -526,6 +557,9 @@ class MarketIndicatorEngine:
             win_rate_recent=win_rate_recent,
             profit_factor_recent=profit_factor_recent,
             sharpe_ratio_recent=0.0,  # Placeholder
+            # Basic market data
+            price=current_price,
+            volume=volume_profile * 1000000.0,  # Estimated volume
             timestamp=timestamp,
         )
 
@@ -593,6 +627,27 @@ class MarketIndicatorEngine:
         )
 
         return total_profit / total_loss if total_loss > 0 else 1.0
+
+    def _calculate_iv_skew(self, implied_move: float, atm_iv: float) -> float:
+        """Calculate IV skew indicator"""
+        # Simplified calculation - in reality would use put/call IV difference
+        if atm_iv > 0:
+            return (implied_move / atm_iv - 1.0) * 100
+        return 0.0
+
+    def _calculate_iv_term_structure(self, implied_move: float, atm_iv: float) -> float:
+        """Calculate IV term structure indicator"""
+        # Simplified - would normally compare near vs far term IV
+        if atm_iv > 0:
+            return implied_move / atm_iv
+        return 1.0
+
+    def _calculate_vix_term_structure(self, vix_level: Optional[float], atm_iv: float) -> float:
+        """Calculate VIX term structure"""
+        if vix_level and vix_level > 0:
+            # Compare spot VIX to ATM IV as proxy for term structure
+            return atm_iv / (vix_level / 100) if vix_level > 0 else 1.0
+        return 0.0
 
     def add_trade_result(self, profit: float, trade_details: Dict):
         """Add trade result to history for performance tracking"""

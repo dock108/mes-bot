@@ -9,6 +9,8 @@ import pytest
 from app.config import Config, IBConfig, MarketHours, TradingConfig
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestConfigProperties:
     """Test configuration properties and edge cases"""
 

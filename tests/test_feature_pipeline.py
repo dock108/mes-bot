@@ -20,6 +20,8 @@ from app.models import MarketFeatures as MarketFeaturesModel
 from app.models import Trade, get_session_maker
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestFeatureCollector:
     """Test feature collection and storage functionality"""
 
@@ -220,6 +222,8 @@ class TestFeatureCollector:
             session.close()
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestFeatureEngineer:
     """Test feature engineering functionality"""
 
@@ -313,6 +317,7 @@ class TestFeatureEngineer:
             iv_percentile=65.0,
             iv_skew=0.02,
             iv_term_structure=0.01,
+            rsi_5m=52.0,
             rsi_15m=55.0,
             rsi_30m=58.0,
             macd_signal=0.1,
@@ -332,6 +337,7 @@ class TestFeatureEngineer:
             vix_term_structure=0.025,
             market_correlation=0.75,
             volume_profile=1.15,
+            market_regime="normal",
             time_of_day=14.0,
             day_of_week=3.0,
             time_to_expiry=3.5,
@@ -339,6 +345,8 @@ class TestFeatureEngineer:
             win_rate_recent=0.32,
             profit_factor_recent=1.9,
             sharpe_ratio_recent=1.3,
+            price=4200.0,
+            volume=1000000.0,
             timestamp=datetime.utcnow(),
         )
 
@@ -537,6 +545,8 @@ class TestFeatureEngineer:
             assert not df[feature_cols].isnull().any().any()
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestDataQualityMonitor:
     """Test data quality monitoring functionality"""
 
@@ -766,6 +776,8 @@ class TestDataQualityMonitor:
         assert drift_scores == {}
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestFeaturePipelineIntegration:
     """Integration tests for the complete feature pipeline"""
 
@@ -841,6 +853,7 @@ class TestFeaturePipelineIntegration:
                     vix_term_structure=0.0,
                     market_correlation=0.5,
                     volume_profile=0.0,
+                    market_regime="normal",
                     time_of_day=timestamp.hour + timestamp.minute / 60.0,
                     day_of_week=float(timestamp.weekday()),
                     time_to_expiry=3.5,

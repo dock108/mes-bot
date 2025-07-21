@@ -12,6 +12,8 @@ import pytest
 from app.backtester import BacktestTrade, BlackScholesCalculator, LottoGridBacktester
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestBlackScholesCalculator:
     """Test cases for Black-Scholes calculator"""
 
@@ -75,6 +77,8 @@ class TestBlackScholesCalculator:
         assert abs(lhs - rhs) < 0.01  # Should be very close
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestLottoGridBacktester:
     """Test cases for LottoGridBacktester"""
 

@@ -14,6 +14,8 @@ from app.models import Base, DailySummary, Trade
 from app.risk_manager import RiskManager
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestRiskManager:
     """Test cases for RiskManager"""
 

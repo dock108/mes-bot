@@ -204,6 +204,7 @@ mypy-report.txt
 isort-report.txt
 black-report.txt
 .testmondata
+*optimization_report_*
 
 # Performance profiling
 profiles/
@@ -216,7 +217,7 @@ profiles/
 benchmark_results/
 
 # ML Model artifacts
-models/*.pkl
+*.pkl
 models/*.joblib
 models/*.h5
 models/*.pt
@@ -364,9 +365,13 @@ pip-wheel-metadata/
 temp/
 tmp/
 
+# Personal ignore files and notes
+*.ignore.*
+
 # Keep important files
 !.env.example
 !config.example.py
 !settings.example.json
 !CLAUDE.md
 !.claude_instructions
+*.pkl

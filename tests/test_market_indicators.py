@@ -20,6 +20,7 @@ from app.market_indicators import (
 )
 
 
+@pytest.mark.unit
 class TestTechnicalIndicators:
     """Test technical analysis calculations"""
 
@@ -135,6 +136,7 @@ class TestTechnicalIndicators:
         assert abs(ema - prices[-1]) < abs(np.mean(prices) - prices[-1])
 
 
+@pytest.mark.unit
 class TestVolatilityAnalyzer:
     """Test volatility analysis functionality"""
 
@@ -218,6 +220,7 @@ class TestVolatilityAnalyzer:
         assert rank == 50.0  # Default when insufficient data
 
 
+@pytest.mark.unit
 class TestMarketMicrostructure:
     """Test market microstructure analysis"""
 
@@ -286,6 +289,7 @@ class TestMarketMicrostructure:
         assert profile == 0.0
 
 
+@pytest.mark.unit
 class TestMarketRegimeDetector:
     """Test market regime detection"""
 
@@ -349,6 +353,7 @@ class TestMarketRegimeDetector:
         assert percentile == 50.0
 
 
+@pytest.mark.unit
 class TestMarketIndicatorEngine:
     """Test the main market indicator engine"""
 
@@ -487,6 +492,7 @@ class TestMarketIndicatorEngine:
         assert profit_factor == 2.0  # 150 profit / 75 loss
 
 
+@pytest.mark.unit
 class TestMarketFeaturesDataclass:
     """Test MarketFeatures dataclass functionality"""
 
@@ -505,6 +511,7 @@ class TestMarketFeaturesDataclass:
             iv_percentile=70.0,
             iv_skew=0.05,
             iv_term_structure=0.02,
+            rsi_5m=52.0,
             rsi_15m=55.0,
             rsi_30m=58.0,
             macd_signal=0.15,
@@ -524,6 +531,7 @@ class TestMarketFeaturesDataclass:
             vix_term_structure=0.03,
             market_correlation=0.75,
             volume_profile=1.1,
+            market_regime="normal",
             time_of_day=14.5,
             day_of_week=2.0,
             time_to_expiry=3.5,
@@ -531,6 +539,8 @@ class TestMarketFeaturesDataclass:
             win_rate_recent=0.28,
             profit_factor_recent=1.8,
             sharpe_ratio_recent=1.2,
+            price=4200.0,
+            volume=1000000.0,
             timestamp=timestamp,
         )
 
@@ -553,6 +563,7 @@ class TestMarketFeaturesDataclass:
             iv_percentile=70.0,
             iv_skew=0.05,
             iv_term_structure=0.02,
+            rsi_5m=52.0,
             rsi_15m=55.0,
             rsi_30m=58.0,
             macd_signal=0.15,
@@ -572,6 +583,7 @@ class TestMarketFeaturesDataclass:
             vix_term_structure=0.03,
             market_correlation=0.75,
             volume_profile=1.1,
+            market_regime="normal",
             time_of_day=14.5,
             day_of_week=2.0,
             time_to_expiry=3.5,
@@ -579,6 +591,8 @@ class TestMarketFeaturesDataclass:
             win_rate_recent=0.28,
             profit_factor_recent=1.8,
             sharpe_ratio_recent=1.2,
+            price=4200.0,
+            volume=1000000.0,
             timestamp=datetime.utcnow(),
         )
 
@@ -599,6 +613,7 @@ class TestMarketFeaturesDataclass:
 
 
 # Integration tests for the complete indicator engine
+@pytest.mark.unit
 class TestIndicatorEngineIntegration:
     """Integration tests for the complete indicator engine workflow"""
 

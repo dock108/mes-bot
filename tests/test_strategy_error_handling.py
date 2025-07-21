@@ -12,6 +12,8 @@ from app.risk_manager import RiskManager
 from app.strategy import LottoGridStrategy
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestStrategyErrorHandling:
     """Test error handling in strategy.py"""
 
@@ -26,15 +28,19 @@ class TestStrategyErrorHandling:
 
     @pytest.mark.asyncio
     async def test_record_trade_database_error(self, strategy):
-        """Test _record_trade with database error"""
-        trade_details = {
+        """Test record_trade with database error"""
+        strangle_result = {
             "call_strike": 4300,
             "put_strike": 4200,
             "call_price": 2.5,
             "put_price": 2.0,
             "total_premium": 22.5,
-            "implied_move": 50,
+            "call_trades": [],
+            "put_trades": [],
         }
+
+        # Setup instrument state
+        strategy.update_instrument_state("MES", underlying_price=4250, implied_move=50)
 
         # Mock session to raise error
         mock_session = Mock()
@@ -42,8 +48,8 @@ class TestStrategyErrorHandling:
         strategy.session_maker = Mock(return_value=mock_session)
 
         # Should raise error
-        with pytest.raises(SQLAlchemyError):
-            await strategy._record_trade(trade_details)
+        with pytest.raises(Exception):  # record_trade catches and re-raises as generic Exception
+            await strategy.record_trade("MES", strangle_result)
 
     def test_should_place_trade_edge_cases(self, strategy):
         """Test should_place_trade with edge cases"""

@@ -10,6 +10,7 @@ import pytz
 from app.config import DatabaseConfig, IBConfig, MarketHours, TradingConfig, config
 
 
+@pytest.mark.unit
 class TestIBConfig:
     """Test Interactive Brokers configuration"""
 
@@ -46,6 +47,7 @@ class TestIBConfig:
         assert ib_config.password == "testpass"
 
 
+@pytest.mark.unit
 class TestTradingConfig:
     """Test trading strategy configuration"""
 
@@ -115,6 +117,7 @@ class TestTradingConfig:
         assert trading_config.consecutive_loss_limit == 5
 
 
+@pytest.mark.unit
 class TestMarketHours:
     """Test market hours configuration"""
 
@@ -170,6 +173,7 @@ class TestMarketHours:
         assert market_hours.flatten_time == time(17, 25)
 
 
+@pytest.mark.unit
 class TestDatabaseConfig:
     """Test database configuration"""
 
@@ -185,6 +189,7 @@ class TestDatabaseConfig:
         assert db_config.url == "postgresql://user:pass@localhost/testdb"
 
 
+@pytest.mark.unit
 class TestConfigObject:
     """Test the main config object"""
 
