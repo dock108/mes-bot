@@ -20,6 +20,8 @@ from app.models import MarketFeatures as MarketFeaturesModel
 from app.models import Trade, get_session_maker
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestFeatureCollector:
     """Test feature collection and storage functionality"""
 
@@ -220,6 +222,8 @@ class TestFeatureCollector:
             session.close()
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestFeatureEngineer:
     """Test feature engineering functionality"""
 
@@ -541,6 +545,8 @@ class TestFeatureEngineer:
             assert not df[feature_cols].isnull().any().any()
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestDataQualityMonitor:
     """Test data quality monitoring functionality"""
 
@@ -770,6 +776,8 @@ class TestDataQualityMonitor:
         assert drift_scores == {}
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestFeaturePipelineIntegration:
     """Integration tests for the complete feature pipeline"""
 

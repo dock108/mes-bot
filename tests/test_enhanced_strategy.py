@@ -20,6 +20,8 @@ from app.risk_manager import RiskManager
 from app.strategy import LottoGridStrategy
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestEnhancedLottoGridStrategy:
     """Test enhanced trading strategy with ML integration"""
 
@@ -708,6 +710,8 @@ class TestEnhancedLottoGridStrategy:
             session.close()
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestEnhancedStrategyIntegration:
     """Integration tests for enhanced strategy with real components"""
 

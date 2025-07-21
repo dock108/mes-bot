@@ -27,6 +27,8 @@ from app.ml_training import ModelTrainer
 from app.models import Base, DecisionHistory, MarketData, MarketFeatures, get_session_maker
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestMarketDataProcessingPerformance:
     """Test performance of market data collection and processing"""
 
@@ -218,6 +220,8 @@ class TestMarketDataProcessingPerformance:
         )
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestFeatureEngineeringPerformance:
     """Test performance of feature engineering pipeline"""
 
@@ -373,6 +377,8 @@ class TestFeatureEngineeringPerformance:
             session.close()
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestDecisionEnginePerformance:
     """Test performance of decision engine under load"""
 
@@ -574,6 +580,8 @@ class TestDecisionEnginePerformance:
         )
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestMLModelPerformance:
     """Test ML model training and prediction performance"""
 
@@ -738,6 +746,8 @@ class TestMLModelPerformance:
             )
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestDatabasePerformance:
     """Test database performance under load"""
 
@@ -881,6 +891,8 @@ class TestDatabasePerformance:
             session.close()
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestSystemResourceUsage:
     """Test system resource usage under various loads"""
 
@@ -1105,6 +1117,8 @@ class TestSystemResourceUsage:
             )
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestRealTimePerformanceRequirements:
     """Test performance requirements for real-time trading"""
 

@@ -2,18 +2,15 @@
 Comprehensive tests for instrument configuration and management
 """
 
-import pytest
-from datetime import datetime, time
 from dataclasses import asdict
+from datetime import datetime, time
 
-from app.instruments import (
-    InstrumentType,
-    InstrumentSpec,
-    InstrumentManager,
-    DEFAULT_INSTRUMENTS,
-)
+import pytest
+
+from app.instruments import DEFAULT_INSTRUMENTS, InstrumentManager, InstrumentSpec, InstrumentType
 
 
+@pytest.mark.unit
 class TestInstrumentType:
     """Test InstrumentType enum"""
 
@@ -31,6 +28,7 @@ class TestInstrumentType:
         assert all_types == expected_types
 
 
+@pytest.mark.unit
 class TestInstrumentSpec:
     """Test InstrumentSpec dataclass"""
 
@@ -119,6 +117,7 @@ class TestInstrumentSpec:
         assert sample_spec == other_spec
 
 
+@pytest.mark.unit
 class TestDefaultInstruments:
     """Test default instrument configurations"""
 
@@ -140,6 +139,7 @@ class TestDefaultInstruments:
             assert 0 < spec.volatility_threshold <= 1
 
 
+@pytest.mark.unit
 class TestInstrumentManager:
     """Test InstrumentManager functionality"""
 
@@ -235,6 +235,7 @@ class TestInstrumentManager:
         assert instrument_manager.validate_instrument_config("INVALID") is False
 
 
+@pytest.mark.unit
 class TestInstrumentSpecValidation:
     """Test InstrumentSpec validation"""
 
@@ -314,6 +315,7 @@ class TestInstrumentSpecValidation:
             )
 
 
+@pytest.mark.unit
 class TestInstrumentErrorHandling:
     """Test error handling and edge cases"""
 

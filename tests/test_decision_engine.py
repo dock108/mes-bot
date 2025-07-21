@@ -22,6 +22,8 @@ from app.decision_engine import (
 from app.market_indicators import MarketFeatures, MarketIndicatorEngine
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestTradingSignal:
     """Test TradingSignal data structure"""
 
@@ -62,6 +64,8 @@ class TestTradingSignal:
         assert isinstance(signal.timestamp, datetime)
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestExitSignal:
     """Test ExitSignal data structure"""
 
@@ -82,6 +86,8 @@ class TestExitSignal:
         assert isinstance(signal.timestamp, datetime)
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestVolatilityBasedModel:
     """Test enhanced volatility-based decision model"""
 
@@ -369,6 +375,8 @@ class TestVolatilityBasedModel:
         assert put_distance <= call_distance
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestMLEnsembleModel:
     """Test ML ensemble model (placeholder implementation)"""
 
@@ -461,6 +469,8 @@ class TestMLEnsembleModel:
         assert "total_predictions" in status
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestDecisionEngine:
     """Test the main decision engine orchestrator"""
 
@@ -865,6 +875,8 @@ class TestDecisionEngine:
             assert "recent_accuracy" in summary[model_name]
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestDecisionEngineIntegration:
     """Integration tests for decision engine with real components"""
 

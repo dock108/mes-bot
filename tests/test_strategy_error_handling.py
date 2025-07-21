@@ -12,6 +12,8 @@ from app.risk_manager import RiskManager
 from app.strategy import LottoGridStrategy
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestStrategyErrorHandling:
     """Test error handling in strategy.py"""
 

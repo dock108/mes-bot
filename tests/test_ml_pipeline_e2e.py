@@ -22,6 +22,8 @@ from app.models import MarketFeatures as MarketFeaturesModel
 from app.models import MLModelMetadata, MLPrediction, Trade, get_session_maker
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestMLPipelineEndToEnd:
     """End-to-end tests for the complete ML pipeline"""
 
@@ -449,6 +451,8 @@ class TestMLPipelineEndToEnd:
             session.close()
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestMLPipelineRobustness:
     """Test ML pipeline robustness and error handling"""
 
@@ -608,6 +612,8 @@ class TestMLPipelineRobustness:
             session.close()
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestMLPipelinePerformance:
     """Test ML pipeline performance characteristics"""
 
@@ -805,6 +811,8 @@ class TestMLPipelinePerformance:
                 assert isinstance(decision, TradingSignal)
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestMLPipelineIntegrationWithStrategy:
     """Test ML pipeline integration with enhanced trading strategy"""
 

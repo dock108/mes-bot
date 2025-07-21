@@ -156,9 +156,14 @@ class EnhancedCircuitBreaker:
                 self._transition_to_half_open()
             else:
                 self.stats.record_rejection()
-                raise CircuitOpenError(f"Circuit breaker is OPEN (will retry after {self._time_until_retry()}s)")
+                raise CircuitOpenError(
+                    f"Circuit breaker is OPEN (will retry after {self._time_until_retry()}s)"
+                )
 
-        if self.state == CircuitState.HALF_OPEN and self.half_open_calls >= self.half_open_max_calls:
+        if (
+            self.state == CircuitState.HALF_OPEN
+            and self.half_open_calls >= self.half_open_max_calls
+        ):
             self.stats.record_rejection()
             raise CircuitOpenError("Circuit breaker is HALF_OPEN (max calls reached)")
 
@@ -190,9 +195,14 @@ class EnhancedCircuitBreaker:
                 self._transition_to_half_open()
             else:
                 self.stats.record_rejection()
-                raise CircuitOpenError(f"Circuit breaker is OPEN (will retry after {self._time_until_retry()}s)")
+                raise CircuitOpenError(
+                    f"Circuit breaker is OPEN (will retry after {self._time_until_retry()}s)"
+                )
 
-        if self.state == CircuitState.HALF_OPEN and self.half_open_calls >= self.half_open_max_calls:
+        if (
+            self.state == CircuitState.HALF_OPEN
+            and self.half_open_calls >= self.half_open_max_calls
+        ):
             self.stats.record_rejection()
             raise CircuitOpenError("Circuit breaker is HALF_OPEN (max calls reached)")
 

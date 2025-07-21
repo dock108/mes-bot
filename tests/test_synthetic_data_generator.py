@@ -12,6 +12,8 @@ from app.market_indicators import MarketFeatures
 from app.synthetic_data_generator import SyntheticDataGenerator
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestSyntheticDataGenerator:
     """Test synthetic data generation functionality"""
 

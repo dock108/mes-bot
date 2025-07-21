@@ -18,6 +18,7 @@ from app.monitoring import (
 )
 
 
+@pytest.mark.unit
 class TestAlertThresholds:
     """Test AlertThresholds configuration"""
 
@@ -50,6 +51,8 @@ class TestAlertThresholds:
         assert thresholds.max_drawdown_pct == 0.25
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestTradingMonitor:
     """Test TradingMonitor functionality"""
 
@@ -378,9 +381,10 @@ class TestTradingMonitor:
             data.timestamp = datetime.utcnow() - timedelta(minutes=i + 1)
             market_data.append(data)
 
-        (
-            mock_session.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value
-        ) = market_data
+        mock_query_chain = (
+            mock_session.query.return_value.filter.return_value.order_by.return_value.limit.return_value
+        )
+        mock_query_chain.all.return_value = market_data
 
         with patch("app.monitoring.send_system_alert") as mock_alert:
             await monitor._check_market_conditions()
@@ -413,9 +417,10 @@ class TestTradingMonitor:
             data.timestamp = datetime.utcnow() - timedelta(minutes=i + 1)
             market_data.append(data)
 
-        (
-            mock_session.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value
-        ) = market_data
+        mock_query_chain = (
+            mock_session.query.return_value.filter.return_value.order_by.return_value.limit.return_value
+        )
+        mock_query_chain.all.return_value = market_data
 
         with patch("app.monitoring.send_system_alert") as mock_alert:
             await monitor._check_market_conditions()
@@ -472,7 +477,9 @@ class TestTradingMonitor:
     async def test_error_handling_in_monitoring_loops(self, monitor):
         """Test error handling in monitoring loops"""
         # Test that monitoring loops handle exceptions gracefully
-        with patch.object(monitor, "_check_performance_alerts", side_effect=Exception("Test error")):
+        with patch.object(
+            monitor, "_check_performance_alerts", side_effect=Exception("Test error")
+        ):
             with patch("app.monitoring.send_error_alert") as mock_alert:
                 # This should not raise an exception
                 try:
@@ -484,6 +491,8 @@ class TestTradingMonitor:
                 mock_alert.assert_called()
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestGlobalMonitorFunctions:
     """Test global monitor initialization and access"""
 

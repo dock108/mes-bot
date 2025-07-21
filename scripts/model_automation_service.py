@@ -18,10 +18,8 @@ sys.path.append(str(Path(__file__).parent.parent))
 from app.config import config  # noqa: E402
 from app.model_automation import ModelAutomationEngine  # noqa: E402
 from app.model_versioning import ModelVersionManager  # noqa: E402
-from app.notification_service import (  # noqa: E402
-    NotificationLevel,
-    send_system_alert,
-)
+from app.notification_service import NotificationLevel  # noqa: E402
+from app.notification_service import send_system_alert  # noqa: E402
 
 # Configure logging
 logging.basicConfig(

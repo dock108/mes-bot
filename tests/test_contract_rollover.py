@@ -13,6 +13,8 @@ from app.config import config
 from app.ib_client import IBClient
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestContractRollover:
     """Test automatic contract rollover logic"""
 

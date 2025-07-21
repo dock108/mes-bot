@@ -20,6 +20,7 @@ from app.logging_service import (
 )
 
 
+@pytest.mark.unit
 class TestCorrelationIdManager:
     """Test correlation ID management"""
 
@@ -62,6 +63,7 @@ class TestCorrelationIdManager:
         assert CorrelationIdManager.get_current_id() is None
 
 
+@pytest.mark.unit
 class TestStructuredFormatter:
     """Test structured JSON formatter"""
 
@@ -150,6 +152,7 @@ class TestStructuredFormatter:
             assert "Test exception" in log_data["exception"]
 
 
+@pytest.mark.unit
 class TestCorrelationIdFilter:
     """Test correlation ID filter"""
 
@@ -203,6 +206,7 @@ class TestCorrelationIdFilter:
         assert record.correlation_id == "unknown"
 
 
+@pytest.mark.unit
 class TestStructuredLogger:
     """Test structured logger"""
 
@@ -279,6 +283,7 @@ class TestStructuredLogger:
         assert call_args[1]["extra"]["notification_success"] == True
 
 
+@pytest.mark.unit
 class TestCorrelationIdDecorator:
     """Test correlation ID decorator"""
 
@@ -349,6 +354,7 @@ class TestCorrelationIdDecorator:
         assert CorrelationIdManager.get_current_id() is None
 
 
+@pytest.mark.unit
 class TestGetLogger:
     """Test get_logger function"""
 
@@ -368,6 +374,7 @@ class TestGetLogger:
         assert logger1 != logger2
 
 
+@pytest.mark.unit
 class TestIntegration:
     """Integration tests"""
 

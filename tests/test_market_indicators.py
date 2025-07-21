@@ -20,6 +20,7 @@ from app.market_indicators import (
 )
 
 
+@pytest.mark.unit
 class TestTechnicalIndicators:
     """Test technical analysis calculations"""
 
@@ -135,6 +136,7 @@ class TestTechnicalIndicators:
         assert abs(ema - prices[-1]) < abs(np.mean(prices) - prices[-1])
 
 
+@pytest.mark.unit
 class TestVolatilityAnalyzer:
     """Test volatility analysis functionality"""
 
@@ -218,6 +220,7 @@ class TestVolatilityAnalyzer:
         assert rank == 50.0  # Default when insufficient data
 
 
+@pytest.mark.unit
 class TestMarketMicrostructure:
     """Test market microstructure analysis"""
 
@@ -286,6 +289,7 @@ class TestMarketMicrostructure:
         assert profile == 0.0
 
 
+@pytest.mark.unit
 class TestMarketRegimeDetector:
     """Test market regime detection"""
 
@@ -349,6 +353,7 @@ class TestMarketRegimeDetector:
         assert percentile == 50.0
 
 
+@pytest.mark.unit
 class TestMarketIndicatorEngine:
     """Test the main market indicator engine"""
 
@@ -487,6 +492,7 @@ class TestMarketIndicatorEngine:
         assert profit_factor == 2.0  # 150 profit / 75 loss
 
 
+@pytest.mark.unit
 class TestMarketFeaturesDataclass:
     """Test MarketFeatures dataclass functionality"""
 
@@ -607,6 +613,7 @@ class TestMarketFeaturesDataclass:
 
 
 # Integration tests for the complete indicator engine
+@pytest.mark.unit
 class TestIndicatorEngineIntegration:
     """Integration tests for the complete indicator engine workflow"""
 

@@ -13,6 +13,8 @@ from app.risk_manager import RiskManager
 from app.strategy import LottoGridStrategy
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestLottoGridStrategy:
     """Test cases for LottoGridStrategy"""
 

@@ -29,6 +29,8 @@ from app.models import (
 )
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestDatabaseSchema:
     """Test database schema creation and basic functionality"""
 
@@ -158,6 +160,8 @@ class TestDatabaseSchema:
         assert timestamp_indexed, "DecisionHistory timestamp should be indexed"
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestTradeModel:
     """Test Trade model functionality"""
 
@@ -244,6 +248,8 @@ class TestTradeModel:
         assert trade.put_status == "OPEN"
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestMarketDataModel:
     """Test MarketData model functionality"""
 
@@ -315,6 +321,8 @@ class TestMarketDataModel:
         assert count == 100
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestMarketFeaturesModel:
     """Test MarketFeatures model functionality"""
 
@@ -432,6 +440,8 @@ class TestMarketFeaturesModel:
         assert features.win_rate_recent == 0.32
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestDecisionHistoryModel:
     """Test DecisionHistory model functionality"""
 
@@ -542,6 +552,8 @@ class TestDecisionHistoryModel:
         assert decision.timestamp is not None
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestMLModelMetadataModel:
     """Test MLModelMetadata model functionality"""
 
@@ -616,6 +628,8 @@ class TestMLModelMetadataModel:
         assert model_metadata.created_at is not None
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestMLPredictionModel:
     """Test MLPrediction model functionality"""
 
@@ -729,6 +743,8 @@ class TestMLPredictionModel:
         assert count == 50
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestPerformanceMetricsModel:
     """Test PerformanceMetrics model functionality"""
 
@@ -790,6 +806,8 @@ class TestPerformanceMetricsModel:
         assert metrics.created_at is not None
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestDatabaseRelationships:
     """Test database relationships and foreign keys"""
 
@@ -884,6 +902,8 @@ class TestDatabaseRelationships:
         assert features.predictions[0].id == prediction.id
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestDatabaseConstraintsAndValidation:
     """Test database constraints and data validation"""
 
@@ -952,6 +972,8 @@ class TestDatabaseConstraintsAndValidation:
             session.commit()
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestDatabasePerformance:
     """Test database performance with larger datasets"""
 
@@ -1039,6 +1061,8 @@ class TestDatabasePerformance:
         assert query_time < 1.0
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestDatabaseMigrationSupport:
     """Test database schema evolution and migration support"""
 

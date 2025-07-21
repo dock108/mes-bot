@@ -9,6 +9,7 @@ import pytest
 from app.technical_indicators import TechnicalIndicators
 
 
+@pytest.mark.unit
 class TestTechnicalIndicators:
     """Test technical indicator calculations"""
 
@@ -124,8 +125,8 @@ class TestTechnicalIndicators:
 
     def test_bollinger_bands_calculation(self, sample_prices):
         """Test Bollinger Bands calculation"""
-        upper, middle, lower, bb_position, bb_squeeze = TechnicalIndicators.calculate_bollinger_bands(
-            sample_prices, period=20, num_std=2.0
+        upper, middle, lower, bb_position, bb_squeeze = (
+            TechnicalIndicators.calculate_bollinger_bands(sample_prices, period=20, num_std=2.0)
         )
 
         # All bands should be finite
@@ -147,8 +148,8 @@ class TestTechnicalIndicators:
     def test_bollinger_bands_insufficient_data(self):
         """Test Bollinger Bands with insufficient data"""
         short_prices = pd.Series([100, 101, 102])
-        upper, middle, lower, bb_position, bb_squeeze = TechnicalIndicators.calculate_bollinger_bands(
-            short_prices, period=20, num_std=2.0
+        upper, middle, lower, bb_position, bb_squeeze = (
+            TechnicalIndicators.calculate_bollinger_bands(short_prices, period=20, num_std=2.0)
         )
 
         # Should return last price for all bands when insufficient data
@@ -157,12 +158,12 @@ class TestTechnicalIndicators:
         assert middle == last_price
         assert lower == last_price
         assert bb_position == 0.5  # Neutral position
-        assert bb_squeeze == 0.0   # No squeeze
+        assert bb_squeeze == 0.0  # No squeeze
 
     def test_bollinger_bands_volatile_data(self, volatile_prices):
         """Test Bollinger Bands with volatile data"""
-        upper, middle, lower, bb_position, bb_squeeze = TechnicalIndicators.calculate_bollinger_bands(
-            volatile_prices, period=10, num_std=2.0
+        upper, middle, lower, bb_position, bb_squeeze = (
+            TechnicalIndicators.calculate_bollinger_bands(volatile_prices, period=10, num_std=2.0)
         )
 
         # With volatile data, bands should be wide apart
@@ -218,7 +219,7 @@ class TestTechnicalIndicators:
         """Test Stochastic Oscillator calculation"""
         # Create high, low, close data
         high_prices = sample_prices * 1.02  # Slightly higher
-        low_prices = sample_prices * 0.98   # Slightly lower
+        low_prices = sample_prices * 0.98  # Slightly lower
         close_prices = sample_prices
 
         k_percent, d_percent = TechnicalIndicators.calculate_stochastic(
@@ -249,9 +250,7 @@ class TestTechnicalIndicators:
         low_prices = sample_prices * 0.98
         close_prices = sample_prices
 
-        atr = TechnicalIndicators.calculate_atr(
-            high_prices, low_prices, close_prices, period=14
-        )
+        atr = TechnicalIndicators.calculate_atr(high_prices, low_prices, close_prices, period=14)
 
         # ATR should be positive and finite
         assert atr > 0
@@ -260,17 +259,15 @@ class TestTechnicalIndicators:
     def test_atr_insufficient_data(self):
         """Test ATR with insufficient data"""
         short_data = pd.Series([100, 101, 102])
-        atr = TechnicalIndicators.calculate_atr(
-            short_data, short_data, short_data, period=14
-        )
+        atr = TechnicalIndicators.calculate_atr(short_data, short_data, short_data, period=14)
 
         # Should return 0 for insufficient data
         assert atr == 0.0
 
     def test_support_resistance_calculation(self, sample_prices):
         """Test Support and Resistance calculation"""
-        support_levels, resistance_levels, strength = TechnicalIndicators.calculate_support_resistance(
-            sample_prices, window=10, num_levels=3
+        support_levels, resistance_levels, strength = (
+            TechnicalIndicators.calculate_support_resistance(sample_prices, window=10, num_levels=3)
         )
 
         # Should return lists of levels and a strength value
@@ -286,8 +283,8 @@ class TestTechnicalIndicators:
     def test_support_resistance_insufficient_data(self):
         """Test Support/Resistance with insufficient data"""
         short_data = pd.Series([100, 101, 102])
-        support_levels, resistance_levels, strength = TechnicalIndicators.calculate_support_resistance(
-            short_data, window=20, num_levels=3
+        support_levels, resistance_levels, strength = (
+            TechnicalIndicators.calculate_support_resistance(short_data, window=20, num_levels=3)
         )
 
         # Should return current price as level
@@ -381,7 +378,9 @@ class TestTechnicalIndicators:
         assert momentum == 0.0
 
         # Bollinger bands should collapse to the constant value
-        upper, middle, lower, bb_position, bb_squeeze = TechnicalIndicators.calculate_bollinger_bands(constant_prices)
+        upper, middle, lower, bb_position, bb_squeeze = (
+            TechnicalIndicators.calculate_bollinger_bands(constant_prices)
+        )
         assert upper == middle == lower == 100.0
         assert bb_position == 0.5
         assert bb_squeeze == 0.0

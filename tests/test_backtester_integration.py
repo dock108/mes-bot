@@ -12,6 +12,8 @@ from app.backtester import LottoGridBacktester
 from app.data_providers.vix_provider import VIXProvider
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestBacktesterIntegration:
     """Test backtester with VIX integration"""
 

@@ -30,6 +30,8 @@ class SerializableTestModel:
         self.__dict__.update(state)
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestModelVersionManager:
     """Test model versioning functionality"""
 
@@ -376,6 +378,8 @@ class TestModelVersionManager:
             )
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestModelAutomationEngine:
     """Test model automation functionality"""
 
@@ -415,7 +419,9 @@ class TestModelAutomationEngine:
         # Patch the model trainer
         with patch.object(automation_engine, "model_trainer", mock_model_trainer):
             # Trigger retraining
-            success = await automation_engine.trigger_model_retraining("entry", RetrainingTrigger.MANUAL, force=True)
+            success = await automation_engine.trigger_model_retraining(
+                "entry", RetrainingTrigger.MANUAL, force=True
+            )
 
             assert success
             assert "entry" in automation_engine.last_retraining
@@ -427,7 +433,9 @@ class TestModelAutomationEngine:
     async def test_performance_monitoring(self, automation_engine):
         """Test performance monitoring logic"""
         # Mock the performance degradation check
-        with patch.object(automation_engine, "_check_model_performance_degradation", return_value=True):
+        with patch.object(
+            automation_engine, "_check_model_performance_degradation", return_value=True
+        ):
             # This would normally be called by the monitoring loop
             degraded = await automation_engine._check_model_performance_degradation("entry")
             assert degraded
@@ -469,7 +477,9 @@ class TestModelAutomationEngine:
         with patch("app.model_automation.send_system_alert") as mock_alert:
             with patch.object(automation_engine, "_scheduled_retraining_loop") as mock_sched:
                 with patch.object(automation_engine, "_performance_monitoring_loop") as mock_perf:
-                    with patch.object(automation_engine, "_data_freshness_monitoring_loop") as mock_data:
+                    with patch.object(
+                        automation_engine, "_data_freshness_monitoring_loop"
+                    ) as mock_data:
                         # Set up async mocks
                         mock_sched.return_value = AsyncMock()
                         mock_perf.return_value = AsyncMock()
@@ -605,7 +615,10 @@ class TestModelAutomationEngine:
     async def test_check_new_training_data_sufficient_trades(self, automation_engine):
         """Test new training data check with sufficient new trades"""
         mock_session = Mock()
-        mock_session.query.return_value.filter.return_value.count.side_effect = [60, 20]  # trades, decisions
+        mock_session.query.return_value.filter.return_value.count.side_effect = [
+            60,
+            20,
+        ]  # trades, decisions
         automation_engine.session_maker = Mock(return_value=mock_session)
 
         result = await automation_engine._check_new_training_data("entry")
@@ -615,7 +628,10 @@ class TestModelAutomationEngine:
     async def test_check_new_training_data_sufficient_decisions(self, automation_engine):
         """Test new training data check with sufficient new decisions"""
         mock_session = Mock()
-        mock_session.query.return_value.filter.return_value.count.side_effect = [20, 120]  # trades, decisions
+        mock_session.query.return_value.filter.return_value.count.side_effect = [
+            20,
+            120,
+        ]  # trades, decisions
         automation_engine.session_maker = Mock(return_value=mock_session)
 
         result = await automation_engine._check_new_training_data("entry")
@@ -625,7 +641,10 @@ class TestModelAutomationEngine:
     async def test_check_new_training_data_insufficient(self, automation_engine):
         """Test new training data check with insufficient data"""
         mock_session = Mock()
-        mock_session.query.return_value.filter.return_value.count.side_effect = [10, 30]  # both below thresholds
+        mock_session.query.return_value.filter.return_value.count.side_effect = [
+            10,
+            30,
+        ]  # both below thresholds
         automation_engine.session_maker = Mock(return_value=mock_session)
 
         result = await automation_engine._check_new_training_data("entry")
@@ -660,7 +679,9 @@ class TestModelAutomationEngine:
         """Test error handling in monitoring loops"""
         # Mock the internal method to raise exception
         with patch.object(
-            automation_engine, "_check_model_performance_degradation", side_effect=Exception("Test error")
+            automation_engine,
+            "_check_model_performance_degradation",
+            side_effect=Exception("Test error"),
         ):
             with patch("app.model_automation.logger") as mock_logger:
                 # Set up running state
@@ -685,9 +706,13 @@ class TestModelAutomationEngine:
     async def test_scheduled_retraining_loop_logic(self, automation_engine):
         """Test scheduled retraining loop logic"""
         # Set old last retraining time
-        automation_engine.last_retraining["entry"] = datetime.utcnow() - timedelta(days=8)  # Older than 7-day schedule
+        automation_engine.last_retraining["entry"] = datetime.utcnow() - timedelta(
+            days=8
+        )  # Older than 7-day schedule
 
-        with patch.object(automation_engine, "trigger_model_retraining", new_callable=AsyncMock) as mock_trigger:
+        with patch.object(
+            automation_engine, "trigger_model_retraining", new_callable=AsyncMock
+        ) as mock_trigger:
             mock_trigger.return_value = True
             automation_engine.running = True
 
@@ -760,6 +785,8 @@ class TestModelAutomationEngine:
                 mock_trigger.assert_called()
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestModelAutomationIntegration:
     """Test integration between automation and versioning"""
 
@@ -787,7 +814,9 @@ class TestModelAutomationIntegration:
             mock_trainer.train_entry_model = AsyncMock(return_value=mock_model)
 
             # Trigger retraining
-            success = await automation.trigger_model_retraining("entry", RetrainingTrigger.MANUAL, force=True)
+            success = await automation.trigger_model_retraining(
+                "entry", RetrainingTrigger.MANUAL, force=True
+            )
 
             assert success
 

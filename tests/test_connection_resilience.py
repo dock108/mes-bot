@@ -18,6 +18,8 @@ from app.ib_connection_manager import (
 )
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestExponentialBackoff:
     """Test exponential backoff functionality"""
 
@@ -51,6 +53,8 @@ class TestExponentialBackoff:
         assert backoff.get_delay() == 1.0
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestConnectionHealthMonitor:
     """Test connection health monitoring"""
 
@@ -99,6 +103,8 @@ class TestConnectionHealthMonitor:
 
 
 @pytest.mark.asyncio
+@pytest.mark.integration
+@pytest.mark.db
 class TestIBConnectionManager:
     """Test IB connection manager functionality"""
 
@@ -200,6 +206,8 @@ class TestIBConnectionManager:
 
 
 @pytest.mark.asyncio
+@pytest.mark.integration
+@pytest.mark.db
 class TestWithConnectionCheck:
     """Test connection check decorator"""
 
@@ -253,6 +261,8 @@ class TestWithConnectionCheck:
         mock_obj.connection_manager._handle_connection_loss.assert_called_once()
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestEnhancedCircuitBreaker:
     """Test enhanced circuit breaker functionality"""
 
@@ -306,7 +316,9 @@ class TestEnhancedCircuitBreaker:
 
     def test_circuit_breaker_initialization(self):
         """Test circuit breaker initialization with custom parameters"""
-        breaker = EnhancedCircuitBreaker(failure_threshold=5, recovery_timeout=30, half_open_max_calls=2)
+        breaker = EnhancedCircuitBreaker(
+            failure_threshold=5, recovery_timeout=30, half_open_max_calls=2
+        )
 
         assert breaker.state == CircuitState.CLOSED
         assert breaker.failure_threshold == 5
@@ -354,13 +366,15 @@ class TestEnhancedCircuitBreaker:
 
     def test_circuit_breaker_half_open_state(self):
         """Test half-open state behavior"""
-        breaker = EnhancedCircuitBreaker(failure_threshold=2, recovery_timeout=0.1, half_open_max_calls=2)
+        breaker = EnhancedCircuitBreaker(
+            failure_threshold=2, recovery_timeout=0.1, half_open_max_calls=2
+        )
 
         # Open circuit
         for i in range(2):
             try:
                 breaker._sync_call(lambda: 1 / 0)
-            except:
+            except Exception:
                 pass
 
         assert breaker.state == CircuitState.OPEN
@@ -395,7 +409,7 @@ class TestEnhancedCircuitBreaker:
         for i in range(2):
             try:
                 breaker._sync_call(lambda: 1 / 0)
-            except:
+            except Exception:
                 pass
 
         # Wait and transition to half-open
@@ -420,7 +434,7 @@ class TestEnhancedCircuitBreaker:
         for i in range(2):
             try:
                 breaker._sync_call(lambda: 1 / 0)
-            except:
+            except Exception:
                 pass
 
         assert breaker.state == CircuitState.OPEN
@@ -550,7 +564,7 @@ class TestEnhancedCircuitBreaker:
         for i in range(5):  # More than threshold
             try:
                 breaker._sync_call(lambda: (_ for _ in ()).throw(PermanentError()))
-            except:
+            except Exception:
                 pass
 
         # Circuit should remain closed for permanent errors
@@ -662,6 +676,8 @@ class TestEnhancedCircuitBreaker:
 
 
 @pytest.mark.asyncio
+@pytest.mark.integration
+@pytest.mark.db
 class TestIntegrationScenarios:
     """Test real-world scenarios"""
 

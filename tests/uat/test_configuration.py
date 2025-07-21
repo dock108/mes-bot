@@ -8,6 +8,7 @@ from playwright.sync_api import Page, expect
 from tests.uat.helpers.dashboard_pages import ConfigurationPage, DashboardPage
 
 
+@pytest.mark.uat
 class TestConfigurationManagement:
     """Test configuration management and settings functionality"""
 

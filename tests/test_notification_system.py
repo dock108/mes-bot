@@ -22,6 +22,8 @@ from app.notification_service import (
 )
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestNotificationConfig:
     """Test notification configuration"""
 
@@ -49,6 +51,8 @@ class TestNotificationConfig:
         assert "test2@example.com" in config.to_emails
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestNotificationService:
     """Test notification service"""
 
@@ -286,6 +290,8 @@ class TestNotificationService:
         assert "console" in stats["enabled_channels"]
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestNotificationHelpers:
     """Test notification helper functions"""
 
@@ -375,6 +381,8 @@ class TestNotificationHelpers:
             assert call_args.context["system"] == "trading"
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestTradingMonitor:
     """Test trading monitor"""
 

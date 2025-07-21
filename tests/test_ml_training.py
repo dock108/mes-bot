@@ -29,6 +29,8 @@ from app.ml_training import (
 from app.models import Base, MLModelMetadata, get_session_maker
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestTrainingConfig:
     """Test training configuration data structure"""
 
@@ -55,6 +57,8 @@ class TestTrainingConfig:
         assert config.scale_features is True
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestModelPerformance:
     """Test model performance metrics structure"""
 
@@ -83,6 +87,8 @@ class TestModelPerformance:
         assert performance.feature_importance["feature1"] == 0.3
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestEntryPredictionModel:
     """Test entry prediction model functionality"""
 
@@ -260,6 +266,8 @@ class TestEntryPredictionModel:
         assert abs(total_importance - 1.0) < 0.1
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestExitPredictionModel:
     """Test exit prediction model functionality"""
 
@@ -318,6 +326,8 @@ class TestExitPredictionModel:
         assert 0 <= performance.accuracy <= 1
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestStrikeOptimizationModel:
     """Test strike optimization model functionality"""
 
@@ -394,6 +404,8 @@ class TestStrikeOptimizationModel:
         assert all(-200 <= pred <= 500 for pred in predictions)
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestModelTrainer:
     """Test main model trainer functionality"""
 
@@ -608,6 +620,8 @@ class TestModelTrainer:
             session.close()
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestModelScheduler:
     """Test automated model retraining scheduler"""
 
@@ -740,6 +754,8 @@ class TestModelScheduler:
         scheduler.trainer.train_strike_model.assert_called_once()
 
 
+@pytest.mark.integration
+@pytest.mark.db
 class TestMLTrainingIntegration:
     """Integration tests for complete ML training pipeline"""
 

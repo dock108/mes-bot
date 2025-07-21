@@ -8,6 +8,7 @@ from playwright.sync_api import Page, expect
 from tests.uat.helpers.dashboard_pages import DashboardPage, LiveMonitorPage
 
 
+@pytest.mark.uat
 class TestLiveMonitoring:
     """Test live monitoring workflow and functionality"""
 

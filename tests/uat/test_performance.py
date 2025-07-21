@@ -8,6 +8,7 @@ from playwright.sync_api import Page, expect
 from tests.uat.helpers.dashboard_pages import DashboardPage, PerformancePage
 
 
+@pytest.mark.uat
 class TestPerformanceAnalytics:
     """Test performance analytics and reporting functionality"""
 
