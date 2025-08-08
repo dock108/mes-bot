@@ -21,7 +21,7 @@ class VIXProvider:
     def __init__(self):
         self.api_key = os.getenv("FRED_API_KEY")
         self.fallback_mode = False
-        
+
         if not self.api_key:
             logger.warning("FRED_API_KEY not found - using fallback VIX values for backtesting")
             self.fallback_mode = True
@@ -36,7 +36,7 @@ class VIXProvider:
         """Get VIX value for a specific date"""
         if self.fallback_mode:
             return self._get_fallback_vix_value(target_date)
-            
+
         try:
             params = {
                 "series_id": self.series_id,
@@ -71,7 +71,7 @@ class VIXProvider:
         """Get most recent VIX value"""
         if self.fallback_mode:
             return self._get_fallback_vix_value(date.today())
-            
+
         try:
             end_date = date.today()
             start_date = end_date - timedelta(days=7)
@@ -108,7 +108,7 @@ class VIXProvider:
         """Get VIX values for a date range"""
         if self.fallback_mode:
             return self._get_fallback_vix_range(start_date, end_date)
-            
+
         try:
             params = {
                 "series_id": self.series_id,
@@ -152,10 +152,10 @@ class VIXProvider:
         Returns reasonable VIX estimates based on historical patterns.
         """
         import math
-        
+
         # Base VIX level (historical average around 19-20)
         base_vix = 19.5
-        
+
         # Add seasonal variation (higher volatility in fall/winter)
         month = target_date.month
         seasonal_adjustment = 0.0
@@ -165,24 +165,24 @@ class VIXProvider:
             seasonal_adjustment = 1.5
         elif month in [6, 7, 8]:  # Summer months typically lower
             seasonal_adjustment = -1.0
-        
+
         # Add some pseudo-random variation based on date
         # Use date as seed for consistent but varied values
         date_hash = hash(target_date.isoformat()) % 1000
         noise = (date_hash / 1000.0 - 0.5) * 6.0  # ±3 point variation
-        
+
         # Add day-of-week effect (Mondays typically higher)
         weekday_adjustment = 0.0
         if target_date.weekday() == 0:  # Monday
             weekday_adjustment = 1.0
         elif target_date.weekday() == 4:  # Friday
             weekday_adjustment = -0.5
-        
+
         synthetic_vix = base_vix + seasonal_adjustment + noise + weekday_adjustment
-        
+
         # Clamp to reasonable bounds (VIX rarely below 10 or above 80)
         synthetic_vix = max(10.0, min(80.0, synthetic_vix))
-        
+
         logger.debug(f"Generated fallback VIX value for {target_date}: {synthetic_vix:.2f}")
         return synthetic_vix
 
@@ -192,10 +192,10 @@ class VIXProvider:
         Creates daily VIX values for the specified date range.
         """
         from datetime import timedelta
-        
+
         records = []
         current_date = start_date
-        
+
         while current_date <= end_date:
             # Skip weekends (VIX is only available on trading days)
             if current_date.weekday() < 5:  # Monday=0, Friday=4
@@ -205,14 +205,14 @@ class VIXProvider:
                     "vix": vix_value
                 })
             current_date += timedelta(days=1)
-        
+
         if not records:
             raise ValueError(f"No trading days found between {start_date} and {end_date}")
-        
+
         df = pd.DataFrame(records)
         df.set_index("date", inplace=True)
         logger.info(f"Generated {len(df)} synthetic VIX observations from {start_date} to {end_date}")
-        
+
         return df
 
     def clear_cache(self):

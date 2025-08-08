@@ -83,7 +83,7 @@ class TestVIXProvider:
         with patch.dict(os.environ, {"FRED_API_KEY": "test_key"}):
             provider = VIXProvider()
             vix_value = provider.get_vix_value(date(2025, 7, 17))
-            
+
             # Should return a synthetic value between 10 and 80
             assert 10.0 <= vix_value <= 80.0
             assert isinstance(vix_value, float)
@@ -123,7 +123,7 @@ class TestVIXProvider:
         with patch.dict(os.environ, {"FRED_API_KEY": "test_key"}):
             provider = VIXProvider()
             vix_value = provider.get_latest_vix()
-            
+
             # Should return a synthetic value between 10 and 80
             assert 10.0 <= vix_value <= 80.0
             assert isinstance(vix_value, float)
@@ -163,7 +163,7 @@ class TestVIXProvider:
         with patch.dict(os.environ, {"FRED_API_KEY": "test_key"}):
             provider = VIXProvider()
             df = provider.get_vix_range(date(2025, 7, 15), date(2025, 7, 17))
-            
+
             # Should return synthetic data
             assert isinstance(df, pd.DataFrame)
             assert len(df) > 0  # Should have at least one trading day
@@ -178,7 +178,7 @@ class TestVIXProvider:
         with patch.dict(os.environ, {"FRED_API_KEY": "test_key"}):
             provider = VIXProvider()
             df = provider.get_vix_range(date(2025, 7, 15), date(2025, 7, 17))
-            
+
             # Should return synthetic data
             assert isinstance(df, pd.DataFrame)
             assert len(df) > 0  # Should have at least one trading day
@@ -245,21 +245,21 @@ class TestVIXProvider:
         """Test synthetic VIX generation in fallback mode"""
         with patch.dict(os.environ, {}, clear=True):  # No API key
             provider = VIXProvider()
-            
+
             # Test single value
             vix_value = provider.get_vix_value(date(2025, 7, 17))
             assert 10.0 <= vix_value <= 80.0
-            
+
             # Test latest value
             latest_vix = provider.get_latest_vix()
             assert 10.0 <= latest_vix <= 80.0
-            
+
             # Test range
             df = provider.get_vix_range(date(2025, 7, 15), date(2025, 7, 17))
             assert isinstance(df, pd.DataFrame)
             assert len(df) >= 1  # At least one trading day
             assert all(10.0 <= v <= 80.0 for v in df["vix"].values)
-            
+
             # Test consistency - same date should return same value
             vix_value_2 = provider.get_vix_value(date(2025, 7, 17))
             assert vix_value == vix_value_2

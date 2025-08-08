@@ -212,17 +212,17 @@ trading:
   mode: paper
   start_cash: 5000
   max_open_trades: 15
-  
+
 risk:
   max_draw: 750
   max_draw_percent: 15
-  
+
 strategy:
   implied_move_multipliers:
     - 1.25
     - 1.5
   volatility_threshold: 0.67
-  
+
 ib:
   gateway:
     host: 127.0.0.1

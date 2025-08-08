@@ -16,6 +16,9 @@ import streamlit as st
 from app.backtester import LottoGridBacktester
 from app.config import config
 from app.models import BacktestResult, DailySummary, Trade, get_session_maker
+from app.risk_analytics import RiskAnalyticsEngine, RiskMetrics
+from app.risk_predictor import RiskPredictor
+from app.models.risk_models import RiskMetric, RiskAlert, StressTestResult
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -960,6 +963,527 @@ class Dashboard:
         finally:
             session.close()
 
+    def render_risk_analytics(self):
+        """Render risk analytics dashboard"""
+        st.header("🛡️ Risk Analytics Dashboard")
+
+        # Initialize risk engines
+        risk_engine = RiskAnalyticsEngine()
+        risk_predictor = RiskPredictor()
+
+        # Create layout columns
+        col1, col2, col3, col4 = st.columns(4)
+
+        # Load current positions and historical data
+        session = self.get_session()
+        try:
+            # Get open trades
+            open_trades = session.query(Trade).filter(Trade.status == "OPEN").all()
+
+            # Convert to position format for risk engine
+            positions = []
+            total_exposure = 0
+            for trade in open_trades:
+                positions.append({
+                    'symbol': f"MES_{trade.call_strike}C",
+                    'quantity': 1,
+                    'market_value': trade.call_premium,
+                    'delta': 0.1,  # Would need real Greeks from IB
+                    'gamma': 0.01,
+                    'vega': 0.5,
+                    'theta': -0.2,
+                    'unrealized_pnl': (trade.unrealized_pnl or 0) / 2
+                })
+                positions.append({
+                    'symbol': f"MES_{trade.put_strike}P",
+                    'quantity': 1,
+                    'market_value': trade.put_premium,
+                    'delta': -0.1,
+                    'gamma': 0.01,
+                    'vega': 0.5,
+                    'theta': -0.2,
+                    'unrealized_pnl': (trade.unrealized_pnl or 0) / 2
+                })
+                total_exposure += trade.total_premium
+
+            # Get historical trades for return calculation
+            all_trades = session.query(Trade).order_by(Trade.entry_time).all()
+            returns = []
+            for trade in all_trades:
+                if trade.realized_pnl is not None:
+                    returns.append(trade.realized_pnl / 100)  # Normalize returns
+
+            # Create mock historical data (would use real market data in production)
+            import numpy as np
+            if len(returns) < 100:
+                # Generate synthetic returns for demo
+                returns = np.random.normal(0.001, 0.02, 100)
+            else:
+                returns = np.array(returns)
+
+            historical_df = pd.DataFrame({
+                'returns': returns,
+                'close': (1 + returns).cumprod() * 5000  # Starting from $5000
+            })
+
+            # Calculate comprehensive risk metrics
+            risk_metrics = risk_engine.get_comprehensive_metrics(positions, historical_df)
+
+            # Display key metrics in columns
+            with col1:
+                st.metric(
+                    "Risk Score",
+                    f"{risk_metrics.risk_score}",
+                    delta=f"{risk_metrics.risk_score - 50}",
+                    delta_color="inverse"
+                )
+                st.caption("0-100 scale")
+
+            with col2:
+                st.metric(
+                    "VaR (95%)",
+                    f"${risk_metrics.var_95 * 100:.2f}",
+                    help="Value at Risk - potential loss at 95% confidence"
+                )
+                st.caption("Daily VaR")
+
+            with col3:
+                st.metric(
+                    "Max Drawdown",
+                    f"{risk_metrics.max_drawdown * 100:.1f}%",
+                    delta_color="inverse"
+                )
+                st.caption("Historical")
+
+            with col4:
+                regime_color = {
+                    "normal": "🟢",
+                    "volatile": "🟡",
+                    "trending": "🔵",
+                    "crisis": "🔴"
+                }.get(risk_metrics.regime_state, "⚪")
+                st.metric(
+                    "Market Regime",
+                    f"{regime_color} {risk_metrics.regime_state.title()}"
+                )
+                st.caption("Current state")
+
+            st.divider()
+
+            # Risk Metrics Visualization
+            tab1, tab2, tab3, tab4, tab5 = st.tabs([
+                "📊 Risk Overview",
+                "🎯 Greeks Exposure",
+                "📈 Predictive Analytics",
+                "⚡ Stress Testing",
+                "🔔 Alerts"
+            ])
+
+            with tab1:
+                col1, col2 = st.columns(2)
+
+                with col1:
+                    st.subheader("Risk Metrics")
+
+                    # Create risk metrics table
+                    metrics_df = pd.DataFrame({
+                        'Metric': [
+                            'Value at Risk (95%)',
+                            'Conditional VaR (95%)',
+                            'Sharpe Ratio',
+                            'Sortino Ratio',
+                            'Calmar Ratio',
+                            'Kelly Fraction'
+                        ],
+                        'Value': [
+                            f"${risk_metrics.var_95 * 100:.2f}",
+                            f"${risk_metrics.cvar_95 * 100:.2f}",
+                            f"{risk_metrics.sharpe_ratio:.2f}",
+                            f"{risk_metrics.sortino_ratio:.2f}",
+                            f"{risk_metrics.calmar_ratio:.2f}",
+                            f"{risk_metrics.kelly_fraction * 100:.1f}%"
+                        ]
+                    })
+                    st.dataframe(metrics_df, use_container_width=True, hide_index=True)
+
+                    # P&L Distribution
+                    st.subheader("P&L Distribution")
+                    fig = go.Figure()
+                    fig.add_trace(go.Histogram(
+                        x=returns * 100,
+                        nbinsx=30,
+                        name='Daily Returns',
+                        marker_color='blue'
+                    ))
+                    fig.add_vline(x=risk_metrics.var_95 * -100, line_dash="dash",
+                                line_color="red", annotation_text="VaR (95%)")
+                    fig.update_layout(
+                        xaxis_title="Return (%)",
+                        yaxis_title="Frequency",
+                        height=300
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+
+                with col2:
+                    st.subheader("Equity Curve")
+
+                    # Calculate cumulative returns
+                    equity_curve = (1 + returns).cumprod() * 5000
+
+                    fig = go.Figure()
+                    fig.add_trace(go.Scatter(
+                        y=equity_curve,
+                        mode='lines',
+                        name='Equity',
+                        line=dict(color='green', width=2)
+                    ))
+
+                    # Add drawdown areas
+                    running_max = pd.Series(equity_curve).expanding().max()
+                    drawdown = (equity_curve - running_max) / running_max
+
+                    fig.add_trace(go.Scatter(
+                        y=drawdown * 100,
+                        mode='lines',
+                        name='Drawdown %',
+                        line=dict(color='red', width=1),
+                        yaxis='y2'
+                    ))
+
+                    fig.update_layout(
+                        yaxis=dict(title='Equity ($)'),
+                        yaxis2=dict(
+                            title='Drawdown (%)',
+                            overlaying='y',
+                            side='right'
+                        ),
+                        hovermode='x unified',
+                        height=400
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+
+            with tab2:
+                st.subheader("Portfolio Greeks Exposure")
+
+                col1, col2 = st.columns(2)
+
+                with col1:
+                    # Greeks summary
+                    greeks_data = {
+                        'Greek': ['Delta', 'Gamma', 'Vega', 'Theta', 'Rho'],
+                        'Portfolio Value': [
+                            risk_metrics.portfolio_delta,
+                            risk_metrics.portfolio_gamma,
+                            risk_metrics.portfolio_vega,
+                            risk_metrics.portfolio_theta,
+                            0  # Rho placeholder
+                        ]
+                    }
+                    greeks_df = pd.DataFrame(greeks_data)
+
+                    # Create gauge charts for each Greek
+                    fig = go.Figure()
+
+                    for i, row in greeks_df.iterrows():
+                        value = row['Portfolio Value']
+                        greek = row['Greek']
+
+                        # Normalize values for display
+                        if greek == 'Delta':
+                            max_val = 10
+                            color = 'blue'
+                        elif greek == 'Gamma':
+                            max_val = 1
+                            color = 'purple'
+                        elif greek == 'Vega':
+                            max_val = 20
+                            color = 'orange'
+                        elif greek == 'Theta':
+                            max_val = 10
+                            color = 'red'
+                        else:
+                            max_val = 1
+                            color = 'gray'
+
+                        fig.add_trace(go.Bar(
+                            x=[value],
+                            y=[greek],
+                            orientation='h',
+                            marker_color=color,
+                            name=greek
+                        ))
+
+                    fig.update_layout(
+                        title="Greeks Exposure",
+                        xaxis_title="Value",
+                        height=300,
+                        showlegend=False
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+
+                with col2:
+                    # Greeks by position heatmap
+                    if positions:
+                        st.subheader("Position Greeks Heatmap")
+
+                        # Create position Greeks matrix
+                        position_greeks = []
+                        for pos in positions[:10]:  # Limit to 10 for display
+                            position_greeks.append([
+                                pos['delta'],
+                                pos['gamma'],
+                                pos['vega'],
+                                pos['theta']
+                            ])
+
+                        fig = go.Figure(data=go.Heatmap(
+                            z=position_greeks,
+                            x=['Delta', 'Gamma', 'Vega', 'Theta'],
+                            y=[p['symbol'][:15] for p in positions[:10]],
+                            colorscale='RdBu',
+                            zmid=0
+                        ))
+
+                        fig.update_layout(
+                            title="Greeks by Position",
+                            height=400
+                        )
+                        st.plotly_chart(fig, use_container_width=True)
+
+            with tab3:
+                st.subheader("Predictive Risk Analytics")
+
+                # Get predictions
+                market_data = {
+                    'returns': returns,
+                    'prices': historical_df['close'].values
+                }
+
+                current_metrics = {
+                    'current_drawdown': risk_metrics.max_drawdown,
+                    'max_drawdown_limit': -0.15,
+                    'risk_score': risk_metrics.risk_score
+                }
+
+                prediction = risk_predictor.get_comprehensive_prediction(
+                    current_metrics, market_data
+                )
+
+                col1, col2, col3 = st.columns(3)
+
+                with col1:
+                    # Drawdown probability gauge
+                    fig = go.Figure(go.Indicator(
+                        mode="gauge+number",
+                        value=prediction.drawdown_probability * 100,
+                        title={'text': "Drawdown Breach Probability"},
+                        domain={'x': [0, 1], 'y': [0, 1]},
+                        gauge={
+                            'axis': {'range': [0, 100]},
+                            'bar': {'color': "darkred" if prediction.drawdown_probability > 0.7
+                                  else "orange" if prediction.drawdown_probability > 0.4
+                                  else "green"},
+                            'steps': [
+                                {'range': [0, 40], 'color': "lightgray"},
+                                {'range': [40, 70], 'color': "lightyellow"},
+                                {'range': [70, 100], 'color': "lightpink"}
+                            ],
+                            'threshold': {
+                                'line': {'color': "red", 'width': 4},
+                                'thickness': 0.75,
+                                'value': 70
+                            }
+                        }
+                    ))
+                    fig.update_layout(height=250)
+                    st.plotly_chart(fig, use_container_width=True)
+
+                with col2:
+                    st.metric(
+                        "Volatility Forecast (1h)",
+                        f"{prediction.volatility_forecast * 100:.2f}%",
+                        help="GARCH-based volatility forecast"
+                    )
+
+                    st.metric(
+                        "Regime Change Probability",
+                        f"{prediction.regime_change_probability * 100:.1f}%",
+                        help="Probability of market regime shift"
+                    )
+
+                    st.metric(
+                        "Prediction Confidence",
+                        f"{prediction.confidence_score * 100:.1f}%",
+                        help="Model confidence in predictions"
+                    )
+
+                with col3:
+                    st.subheader("Detected Risk Patterns")
+                    if prediction.risk_patterns_detected:
+                        for pattern in prediction.risk_patterns_detected:
+                            st.warning(f"⚠️ {pattern.replace('_', ' ').title()}")
+                    else:
+                        st.success("✅ No dangerous patterns detected")
+
+                # Recommendations
+                if prediction.recommended_actions:
+                    st.subheader("📋 Recommended Actions")
+                    for action in prediction.recommended_actions:
+                        if "CRITICAL" in action or "URGENT" in action:
+                            st.error(f"🚨 {action}")
+                        elif "WARNING" in action or "HIGH RISK" in action:
+                            st.warning(f"⚠️ {action}")
+                        else:
+                            st.info(f"ℹ️ {action}")
+
+            with tab4:
+                st.subheader("Stress Testing Scenarios")
+
+                # Run stress tests
+                stress_results = risk_engine.stress_test_scenarios(positions)
+
+                # Create stress test results table
+                stress_data = []
+                for result in stress_results:
+                    stress_data.append({
+                        'Scenario': result.scenario_name.replace('_', ' ').title(),
+                        'Probability': f"{result.probability * 100:.1f}%",
+                        'Expected Loss': f"${abs(result.expected_loss * 100):.2f}",
+                        'Max Loss': f"${abs(result.max_loss * 100):.2f}",
+                        'Recovery (hrs)': f"{result.recovery_hours:.0f}"
+                    })
+
+                stress_df = pd.DataFrame(stress_data)
+
+                # Display as colored table
+                def color_losses(val):
+                    if '$' in str(val):
+                        amount = float(str(val).replace('$', '').replace(',', ''))
+                        if amount > 500:
+                            return 'background-color: #ffcccc'
+                        elif amount > 250:
+                            return 'background-color: #ffe6cc'
+                        else:
+                            return 'background-color: #ccffcc'
+                    return ''
+
+                styled_df = stress_df.style.applymap(color_losses,
+                                                    subset=['Expected Loss', 'Max Loss'])
+                st.dataframe(styled_df, use_container_width=True, hide_index=True)
+
+                # Scenario impact chart
+                fig = go.Figure()
+
+                scenarios = [r.scenario_name.replace('_', ' ').title() for r in stress_results]
+                expected_losses = [abs(r.expected_loss * 100) for r in stress_results]
+                max_losses = [abs(r.max_loss * 100) for r in stress_results]
+
+                fig.add_trace(go.Bar(
+                    name='Expected Loss',
+                    x=scenarios,
+                    y=expected_losses,
+                    marker_color='orange'
+                ))
+
+                fig.add_trace(go.Bar(
+                    name='Max Loss',
+                    x=scenarios,
+                    y=max_losses,
+                    marker_color='red'
+                ))
+
+                fig.update_layout(
+                    title="Stress Test Impact Analysis",
+                    yaxis_title="Loss ($)",
+                    barmode='group',
+                    height=400
+                )
+                st.plotly_chart(fig, use_container_width=True)
+
+            with tab5:
+                st.subheader("Risk Alerts Configuration")
+
+                col1, col2 = st.columns(2)
+
+                with col1:
+                    st.subheader("Alert Thresholds")
+
+                    var_threshold = st.slider(
+                        "VaR Breach Alert (%)",
+                        min_value=80,
+                        max_value=100,
+                        value=95,
+                        help="Alert when loss approaches VaR threshold"
+                    )
+
+                    dd_warning = st.slider(
+                        "Drawdown Warning (%)",
+                        min_value=50,
+                        max_value=90,
+                        value=70,
+                        help="Warning when drawdown reaches this percentage of limit"
+                    )
+
+                    risk_score_warning = st.slider(
+                        "Risk Score Warning",
+                        min_value=40,
+                        max_value=80,
+                        value=60,
+                        help="Alert when risk score exceeds this level"
+                    )
+
+                    vol_spike = st.slider(
+                        "Volatility Spike (x normal)",
+                        min_value=1.5,
+                        max_value=3.0,
+                        value=2.0,
+                        step=0.1,
+                        help="Alert when volatility exceeds normal by this factor"
+                    )
+
+                with col2:
+                    st.subheader("Alert Channels")
+
+                    discord_enabled = st.checkbox("Discord Alerts", value=False)
+                    telegram_enabled = st.checkbox("Telegram Alerts", value=False)
+                    email_enabled = st.checkbox("Email Alerts", value=False)
+
+                    st.subheader("Recent Alerts")
+
+                    # Query recent alerts
+                    recent_alerts = session.query(RiskAlert).order_by(
+                        RiskAlert.timestamp.desc()
+                    ).limit(5).all()
+
+                    if recent_alerts:
+                        for alert in recent_alerts:
+                            severity_icon = {
+                                'info': 'ℹ️',
+                                'warning': '⚠️',
+                                'critical': '🚨',
+                                'emergency': '🆘'
+                            }.get(alert.severity, '📢')
+
+                            with st.expander(
+                                f"{severity_icon} {alert.alert_type} - "
+                                f"{alert.timestamp.strftime('%H:%M:%S')}"
+                            ):
+                                st.write(alert.message)
+                                if alert.metric_value:
+                                    st.write(f"Value: {alert.metric_value:.2f}")
+                                if alert.threshold_value:
+                                    st.write(f"Threshold: {alert.threshold_value:.2f}")
+                    else:
+                        st.info("No recent alerts")
+
+            # Auto-refresh
+            if st.session_state.auto_refresh:
+                time.sleep(10)
+                st.rerun()
+
+        finally:
+            session.close()
+
     def render_configuration(self):
         """Render configuration tab"""
         st.header("Bot Configuration")
@@ -1045,7 +1569,7 @@ def main():
     # Sidebar navigation
     st.sidebar.title("Navigation")
     tab = st.sidebar.radio(
-        "Select View", ["📊 Live Monitor", "📈 Performance", "🔄 Backtesting", "⚙️ Configuration"]
+        "Select View", ["📊 Live Monitor", "📈 Performance", "🛡️ Risk Analytics", "🔄 Backtesting", "⚙️ Configuration"]
     )
 
     # Bot status in sidebar
@@ -1078,6 +1602,8 @@ def main():
         dashboard.render_live_monitoring()
     elif tab == "📈 Performance":
         dashboard.render_performance_analytics()
+    elif tab == "🛡️ Risk Analytics":
+        dashboard.render_risk_analytics()
     elif tab == "🔄 Backtesting":
         dashboard.render_backtesting()
     elif tab == "⚙️ Configuration":

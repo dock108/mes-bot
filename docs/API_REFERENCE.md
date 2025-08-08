@@ -34,17 +34,17 @@ Main orchestrator for the trading system.
 class TradingBot:
     def __init__(self, config: dict = None):
         """Initialize trading bot with configuration.
-        
+
         Args:
             config: Optional configuration dictionary
         """
-    
+
     async def start(self) -> None:
         """Start the trading bot and all components."""
-    
+
     async def stop(self) -> None:
         """Gracefully stop the trading bot."""
-    
+
     async def run_trading_cycle(self) -> None:
         """Execute one complete trading cycle."""
 ```
@@ -67,39 +67,39 @@ Core trading strategy implementation.
 class Strategy:
     def __init__(self, risk_manager: RiskManager):
         """Initialize strategy with risk manager.
-        
+
         Args:
             risk_manager: Risk management component
         """
-    
+
     def should_open_strangle(
-        self, 
+        self,
         current_price: float,
         implied_move: float,
         realized_vol: float
     ) -> bool:
         """Determine if conditions are met for opening a strangle.
-        
+
         Args:
             current_price: Current underlying price
             implied_move: Expected daily move percentage
             realized_vol: Realized volatility over lookback period
-            
+
         Returns:
             True if strangle should be opened
         """
-    
+
     def calculate_strikes(
         self,
         spot_price: float,
         implied_move: float
     ) -> tuple[float, float]:
         """Calculate put and call strikes for strangle.
-        
+
         Args:
             spot_price: Current underlying price
             implied_move: Expected daily move
-            
+
         Returns:
             Tuple of (put_strike, call_strike)
         """
@@ -117,21 +117,21 @@ class EnhancedStrategy(Strategy):
         decision_engine: DecisionEngine = None
     ):
         """Initialize enhanced strategy.
-        
+
         Args:
             risk_manager: Risk management component
             decision_engine: Optional ML decision engine
         """
-    
+
     async def get_ml_signal(
         self,
         market_data: dict
     ) -> TradingSignal:
         """Get ML-based trading signal.
-        
+
         Args:
             market_data: Current market data dictionary
-            
+
         Returns:
             TradingSignal with strength and confidence
         """
@@ -147,44 +147,44 @@ Manages position and account-level risk.
 class RiskManager:
     def __init__(self, config: dict):
         """Initialize risk manager with configuration.
-        
+
         Args:
             config: Risk management configuration
         """
-    
+
     def can_open_position(
         self,
         premium: float,
         current_positions: int
     ) -> bool:
         """Check if new position can be opened.
-        
+
         Args:
             premium: Premium required for position
             current_positions: Number of open positions
-            
+
         Returns:
             True if position can be opened
         """
-    
+
     def check_drawdown(self) -> bool:
         """Check if drawdown limit has been reached.
-        
+
         Returns:
             True if within drawdown limits
         """
-    
+
     def calculate_position_size(
         self,
         account_balance: float,
         premium: float
     ) -> int:
         """Calculate appropriate position size.
-        
+
         Args:
             account_balance: Current account balance
             premium: Premium per contract
-            
+
         Returns:
             Number of contracts to trade
         """
@@ -202,7 +202,7 @@ Interactive Brokers API integration.
 class IBClient:
     def __init__(self):
         """Initialize IB client."""
-    
+
     async def connect(
         self,
         host: str = "127.0.0.1",
@@ -210,16 +210,16 @@ class IBClient:
         client_id: int = 1
     ) -> bool:
         """Connect to IB Gateway/TWS.
-        
+
         Args:
             host: IB Gateway host
             port: IB Gateway port (7497 paper, 7496 live)
             client_id: Unique client identifier
-            
+
         Returns:
             True if connection successful
         """
-    
+
     async def place_strangle(
         self,
         symbol: str,
@@ -229,39 +229,39 @@ class IBClient:
         quantity: int = 1
     ) -> tuple[Trade, Trade]:
         """Place a strangle order.
-        
+
         Args:
             symbol: Underlying symbol (e.g., "MES")
             expiry: Expiration date (YYYYMMDD)
             put_strike: Put option strike price
             call_strike: Call option strike price
             quantity: Number of contracts
-            
+
         Returns:
             Tuple of (put_trade, call_trade)
         """
-    
+
     async def get_current_price(self, symbol: str) -> float:
         """Get current market price.
-        
+
         Args:
             symbol: Contract symbol
-            
+
         Returns:
             Current market price
         """
-    
+
     async def close_position(
         self,
         contract: Contract,
         quantity: int
     ) -> Trade:
         """Close an existing position.
-        
+
         Args:
             contract: IB contract object
             quantity: Number of contracts to close
-            
+
         Returns:
             Trade object for the closing order
         """
@@ -275,17 +275,17 @@ Manages IB connection resilience.
 class IBConnectionManager:
     def __init__(self, ib_client: IBClient):
         """Initialize connection manager.
-        
+
         Args:
             ib_client: IB client instance
         """
-    
+
     async def maintain_connection(self) -> None:
         """Maintain connection with automatic recovery."""
-    
+
     def get_connection_status(self) -> dict:
         """Get detailed connection status.
-        
+
         Returns:
             Dictionary with connection metrics
         """
@@ -301,11 +301,11 @@ Manages order lifecycle and execution.
 class OrderManager:
     def __init__(self, ib_client: IBClient):
         """Initialize order manager.
-        
+
         Args:
             ib_client: IB client for order execution
         """
-    
+
     async def place_bracket_order(
         self,
         contract: Contract,
@@ -315,14 +315,14 @@ class OrderManager:
         stop_loss: float
     ) -> BracketOrder:
         """Place bracket order with profit target and stop loss.
-        
+
         Args:
             contract: Contract to trade
             quantity: Number of contracts
             entry_price: Entry limit price
             profit_target: Take profit price
             stop_loss: Stop loss price
-            
+
         Returns:
             BracketOrder object with all orders
         """
@@ -340,31 +340,31 @@ ML-based decision making system.
 class DecisionEngine:
     def __init__(self, models: list = None):
         """Initialize decision engine.
-        
+
         Args:
             models: List of trained models
         """
-    
+
     def predict(
         self,
         features: pd.DataFrame
     ) -> TradingSignal:
         """Generate trading signal from features.
-        
+
         Args:
             features: Feature dataframe
-            
+
         Returns:
             TradingSignal with prediction
         """
-    
+
     def update_model(
         self,
         new_model: Any,
         model_name: str
     ) -> None:
         """Update a model in the ensemble.
-        
+
         Args:
             new_model: New trained model
             model_name: Name of model to update
@@ -381,25 +381,25 @@ Feature engineering and data preprocessing.
 class FeaturePipeline:
     def __init__(self):
         """Initialize feature pipeline."""
-    
+
     def calculate_features(
         self,
         price_data: pd.DataFrame,
         volume_data: pd.DataFrame = None
     ) -> pd.DataFrame:
         """Calculate all features for ML models.
-        
+
         Args:
             price_data: Price history dataframe
             volume_data: Optional volume data
-            
+
         Returns:
             DataFrame with engineered features
         """
-    
+
     def get_feature_importance(self) -> pd.DataFrame:
         """Get feature importance scores.
-        
+
         Returns:
             DataFrame with feature importance
         """
@@ -415,22 +415,22 @@ Technical indicator calculations.
 class MarketIndicatorEngine:
     def __init__(self):
         """Initialize indicator engine."""
-    
+
     def calculate_rsi(
         self,
         prices: np.ndarray,
         period: int = 14
     ) -> float:
         """Calculate Relative Strength Index.
-        
+
         Args:
             prices: Price array
             period: RSI period
-            
+
         Returns:
             RSI value (0-100)
         """
-    
+
     def calculate_bollinger_bands(
         self,
         prices: np.ndarray,
@@ -438,16 +438,16 @@ class MarketIndicatorEngine:
         std_dev: float = 2.0
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Calculate Bollinger Bands.
-        
+
         Args:
             prices: Price array
             period: Moving average period
             std_dev: Standard deviation multiplier
-            
+
         Returns:
             Tuple of (upper_band, middle_band, lower_band)
         """
-    
+
     def calculate_implied_volatility(
         self,
         option_price: float,
@@ -457,14 +457,14 @@ class MarketIndicatorEngine:
         risk_free_rate: float = 0.05
     ) -> float:
         """Calculate implied volatility.
-        
+
         Args:
             option_price: Current option price
             spot: Spot price of underlying
             strike: Strike price
             time_to_expiry: Time to expiration in years
             risk_free_rate: Risk-free interest rate
-            
+
         Returns:
             Implied volatility as decimal
         """
@@ -492,7 +492,7 @@ class Trade:
     status: str  # "OPEN", "CLOSED", "EXPIRED"
     pnl: float = None
     close_timestamp: datetime = None
-    
+
     def calculate_pnl(self, close_price: float) -> float:
         """Calculate P&L for the trade."""
 ```
@@ -524,23 +524,23 @@ VIX data provider for volatility analysis.
 class VIXDataProvider:
     def __init__(self):
         """Initialize VIX data provider."""
-    
+
     async def get_current_vix(self) -> float:
         """Get current VIX value.
-        
+
         Returns:
             Current VIX level
         """
-    
+
     async def get_vix_percentile(
         self,
         lookback_days: int = 252
     ) -> float:
         """Get VIX percentile rank.
-        
+
         Args:
             lookback_days: Historical lookback period
-            
+
         Returns:
             Percentile rank (0-100)
         """
@@ -558,16 +558,16 @@ Main dashboard interface.
 class DashboardUI:
     def __init__(self):
         """Initialize dashboard UI."""
-    
+
     def render_live_monitor(self) -> None:
         """Render live monitoring section."""
-    
+
     def render_performance_analytics(self) -> None:
         """Render performance analytics section."""
-    
+
     def render_backtesting(self) -> None:
         """Render backtesting interface."""
-    
+
     def render_configuration(self) -> None:
         """Render configuration management interface."""
 ```
@@ -589,24 +589,24 @@ class CircuitBreaker:
         expected_exception: type = Exception
     ):
         """Initialize circuit breaker.
-        
+
         Args:
             failure_threshold: Failures before opening
             recovery_timeout: Seconds before retry
             expected_exception: Exception type to catch
         """
-    
+
     def call(self, func: Callable, *args, **kwargs) -> Any:
         """Call function with circuit breaker protection.
-        
+
         Args:
             func: Function to call
             *args: Function arguments
             **kwargs: Function keyword arguments
-            
+
         Returns:
             Function result
-            
+
         Raises:
             CircuitOpenError: If circuit is open
         """
@@ -624,11 +624,11 @@ def setup_logging(
     log_file: str = "logs/bot.log"
 ) -> logging.Logger:
     """Set up application logging.
-    
+
     Args:
         log_level: Logging level
         log_file: Log file path
-        
+
     Returns:
         Configured logger instance
     """
@@ -644,25 +644,25 @@ Application configuration management.
 class Config:
     def __init__(self, env_file: str = ".env"):
         """Load configuration from environment.
-        
+
         Args:
             env_file: Path to environment file
         """
-    
+
     @property
     def trade_mode(self) -> str:
         """Get trading mode (paper/live)."""
-    
+
     @property
     def max_open_trades(self) -> int:
         """Get maximum open trades limit."""
-    
+
     def validate(self) -> bool:
         """Validate configuration.
-        
+
         Returns:
             True if configuration is valid
-            
+
         Raises:
             ConfigurationError: If configuration is invalid
         """
@@ -734,17 +734,17 @@ from app.config import Config
 async def main():
     # Load configuration
     config = Config()
-    
+
     # Initialize bot
     bot = TradingBot(config)
-    
+
     # Start trading
     try:
         await bot.start()
-        
+
         # Run until interrupted
         await asyncio.Event().wait()
-        
+
     except KeyboardInterrupt:
         await bot.stop()
 

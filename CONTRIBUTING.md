@@ -45,10 +45,10 @@ Thank you for your interest in contributing to the MES 0DTE Options Trading Bot!
    ```bash
    # Install Poetry
    curl -sSL https://install.python-poetry.org | python3 -
-   
+
    # Install dependencies
    poetry install --with dev
-   
+
    # Install pre-commit hooks
    poetry run pre-commit install
    ```
@@ -192,32 +192,32 @@ import numpy as np
 
 class StrategyEngine:
     """Manages trading strategy execution.
-    
+
     Attributes:
         config: Strategy configuration parameters
         risk_manager: Risk management component
     """
-    
+
     def calculate_signal(
-        self, 
-        prices: np.ndarray, 
+        self,
+        prices: np.ndarray,
         volumes: Optional[np.ndarray] = None
     ) -> float:
         """Calculate trading signal strength.
-        
+
         Args:
             prices: Array of price data
             volumes: Optional array of volume data
-            
+
         Returns:
             Signal strength between -1 and 1
-            
+
         Raises:
             ValueError: If prices array is empty
         """
         if len(prices) == 0:
             raise ValueError("Prices array cannot be empty")
-        
+
         # Implementation here
         return signal_strength
 ```
@@ -271,24 +271,24 @@ from unittest.mock import Mock, patch
 
 class TestStrategyEngine:
     """Test suite for StrategyEngine."""
-    
+
     @pytest.fixture
     def engine(self):
         """Create strategy engine instance."""
         return StrategyEngine(config=test_config)
-    
+
     def test_signal_calculation(self, engine):
         """Test signal calculation with valid data."""
         # Arrange
         prices = np.array([100, 101, 102])
-        
+
         # Act
         signal = engine.calculate_signal(prices)
-        
+
         # Assert
         assert -1 <= signal <= 1
         assert isinstance(signal, float)
-    
+
     def test_signal_calculation_empty_prices(self, engine):
         """Test signal calculation raises error for empty prices."""
         with pytest.raises(ValueError, match="empty"):
@@ -303,11 +303,11 @@ def test_strategy_performance():
     """Ensure strategy calculations meet performance requirements."""
     engine = StrategyEngine()
     data = generate_large_dataset()
-    
+
     start = time.time()
     engine.process(data)
     duration = time.time() - start
-    
+
     assert duration < 0.1  # Must process in under 100ms
 ```
 
@@ -396,18 +396,18 @@ def calculate_strangle_strikes(
     multipliers: tuple[float, float] = (1.25, 1.5)
 ) -> tuple[float, float]:
     """Calculate strike prices for strangle position.
-    
+
     Uses implied move and multipliers to determine optimal
     strike placement for 0DTE strangle positions.
-    
+
     Args:
         spot_price: Current underlying price
         implied_move: Expected daily move (as decimal)
         multipliers: Distance multipliers for strikes
-        
+
     Returns:
         Tuple of (put_strike, call_strike)
-        
+
     Example:
         >>> strikes = calculate_strangle_strikes(5000, 0.01)
         >>> print(strikes)

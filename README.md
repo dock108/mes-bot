@@ -291,7 +291,7 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 
 ## ⚠️ Risk Disclaimer
 
-**IMPORTANT**: This software is for educational purposes only. Trading options involves substantial risk of loss and is not suitable for all investors. 
+**IMPORTANT**: This software is for educational purposes only. Trading options involves substantial risk of loss and is not suitable for all investors.
 
 - Options trading can result in total loss of investment
 - 0DTE options are particularly risky and volatile
@@ -321,4 +321,3 @@ This project is licensed under the MIT License - see [LICENSE](LICENSE) file for
 **Built for systematic traders who value robust risk management and production-grade reliability.**
 
 *For detailed setup and usage instructions, see the [User Guide](docs/USER_GUIDE.md).*
-
