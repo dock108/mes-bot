@@ -18,16 +18,18 @@ class TestVIXProvider:
     """Test cases for VIX data provider"""
 
     def test_init_without_api_key(self):
-        """Test initialization fails without API key"""
+        """Test initialization succeeds without API key (fallback mode)"""
         with patch.dict(os.environ, {}, clear=True):
-            with pytest.raises(ValueError, match="FRED_API_KEY not found"):
-                VIXProvider()
+            provider = VIXProvider()
+            assert provider.fallback_mode is True
+            assert provider.api_key is None
 
     def test_init_with_api_key(self):
         """Test successful initialization with API key"""
         with patch.dict(os.environ, {"FRED_API_KEY": "test_key"}):
             provider = VIXProvider()
             assert provider.api_key == "test_key"
+            assert provider.fallback_mode is False
             assert provider.series_id == "VIXCLS"
             assert urlparse(provider.base_url).hostname == "api.stlouisfed.org"
 
@@ -75,13 +77,16 @@ class TestVIXProvider:
 
     @patch("requests.get")
     def test_get_vix_value_api_error(self, mock_get):
-        """Test error handling for API failures"""
+        """Test fallback to synthetic VIX on API failures"""
         mock_get.side_effect = requests.RequestException("API error")
 
         with patch.dict(os.environ, {"FRED_API_KEY": "test_key"}):
             provider = VIXProvider()
-            with pytest.raises(ValueError, match="Failed to fetch VIX data"):
-                provider.get_vix_value(date(2025, 7, 17))
+            vix_value = provider.get_vix_value(date(2025, 7, 17))
+            
+            # Should return a synthetic value between 10 and 80
+            assert 10.0 <= vix_value <= 80.0
+            assert isinstance(vix_value, float)
 
     @patch("requests.get")
     def test_get_latest_vix_success(self, mock_get):
@@ -104,7 +109,7 @@ class TestVIXProvider:
 
     @patch("requests.get")
     def test_get_latest_vix_no_valid_data(self, mock_get):
-        """Test error when no recent VIX data available"""
+        """Test fallback when no recent VIX data available"""
         mock_response = Mock()
         mock_response.json.return_value = {
             "observations": [
@@ -117,8 +122,11 @@ class TestVIXProvider:
 
         with patch.dict(os.environ, {"FRED_API_KEY": "test_key"}):
             provider = VIXProvider()
-            with pytest.raises(ValueError, match="No recent VIX data available"):
-                provider.get_latest_vix()
+            vix_value = provider.get_latest_vix()
+            
+            # Should return a synthetic value between 10 and 80
+            assert 10.0 <= vix_value <= 80.0
+            assert isinstance(vix_value, float)
 
     @patch("requests.get")
     def test_get_vix_range_success(self, mock_get):
@@ -146,7 +154,7 @@ class TestVIXProvider:
 
     @patch("requests.get")
     def test_get_vix_range_no_data(self, mock_get):
-        """Test error when no data in range"""
+        """Test fallback when no data in range"""
         mock_response = Mock()
         mock_response.json.return_value = {"observations": []}
         mock_response.raise_for_status = Mock()
@@ -154,18 +162,28 @@ class TestVIXProvider:
 
         with patch.dict(os.environ, {"FRED_API_KEY": "test_key"}):
             provider = VIXProvider()
-            with pytest.raises(ValueError, match="No VIX data available between"):
-                provider.get_vix_range(date(2025, 7, 15), date(2025, 7, 17))
+            df = provider.get_vix_range(date(2025, 7, 15), date(2025, 7, 17))
+            
+            # Should return synthetic data
+            assert isinstance(df, pd.DataFrame)
+            assert len(df) > 0  # Should have at least one trading day
+            assert "vix" in df.columns
+            assert all(10.0 <= v <= 80.0 for v in df["vix"].values)
 
     @patch("requests.get")
     def test_get_vix_range_api_error(self, mock_get):
-        """Test error handling for range API failures"""
+        """Test fallback for range API failures"""
         mock_get.side_effect = requests.RequestException("API error")
 
         with patch.dict(os.environ, {"FRED_API_KEY": "test_key"}):
             provider = VIXProvider()
-            with pytest.raises(ValueError, match="Failed to fetch VIX range data"):
-                provider.get_vix_range(date(2025, 7, 15), date(2025, 7, 17))
+            df = provider.get_vix_range(date(2025, 7, 15), date(2025, 7, 17))
+            
+            # Should return synthetic data
+            assert isinstance(df, pd.DataFrame)
+            assert len(df) > 0  # Should have at least one trading day
+            assert "vix" in df.columns
+            assert all(10.0 <= v <= 80.0 for v in df["vix"].values)
 
     def test_clear_cache(self):
         """Test cache clearing functionality"""
@@ -222,3 +240,26 @@ class TestVIXProvider:
 
             assert len(df) == 1  # Only one valid observation
             assert df["vix"].iloc[0] == 16.00
+
+    def test_fallback_vix_generation(self):
+        """Test synthetic VIX generation in fallback mode"""
+        with patch.dict(os.environ, {}, clear=True):  # No API key
+            provider = VIXProvider()
+            
+            # Test single value
+            vix_value = provider.get_vix_value(date(2025, 7, 17))
+            assert 10.0 <= vix_value <= 80.0
+            
+            # Test latest value
+            latest_vix = provider.get_latest_vix()
+            assert 10.0 <= latest_vix <= 80.0
+            
+            # Test range
+            df = provider.get_vix_range(date(2025, 7, 15), date(2025, 7, 17))
+            assert isinstance(df, pd.DataFrame)
+            assert len(df) >= 1  # At least one trading day
+            assert all(10.0 <= v <= 80.0 for v in df["vix"].values)
+            
+            # Test consistency - same date should return same value
+            vix_value_2 = provider.get_vix_value(date(2025, 7, 17))
+            assert vix_value == vix_value_2

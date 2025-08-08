@@ -1,6 +1,12 @@
-# MES 0DTE Lotto-Grid Options Bot
+# MES 0DTE Options Trading Bot
 
-A production-grade automated trading system for Micro E-mini S&P 500 (MES) 0-day-to-expiry (0DTE) options using a systematic strangle strategy.
+[![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
+[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![Tests](https://img.shields.io/badge/tests-255%20passing-brightgreen)](docs/testing/)
+[![Coverage](https://img.shields.io/badge/coverage-83%25-yellow)](docs/testing/coverage.md)
+[![Docker](https://img.shields.io/badge/docker-ready-blue)](docs/DEPLOYMENT.md#docker)
+
+A production-grade automated trading system for Micro E-mini S&P 500 (MES) 0-day-to-expiry (0DTE) options using systematic strangle strategies with ML-enhanced decision making.
 
 ## 🎯 Overview
 
@@ -40,66 +46,70 @@ This bot systematically buys deep out-of-the-money (OTM) same-day strangles on M
 - Python 3.10+ or Docker
 - 4GB+ RAM for production deployment
 
-### Local Development (macOS)
+### Installation
 
-1. **Clone and Setup**
+```bash
+# Clone repository
+git clone https://github.com/dock108/mes-bot.git
+cd mes-bot
 
-   ```bash
-   git clone https://github.com/your-username/lotto-grid-bot.git
-   cd lotto-grid-bot
+# Install with Poetry (recommended)
+curl -sSL https://install.python-poetry.org | python3 -
+poetry install
 
-   # Install Poetry
-   curl -sSL https://install.python-poetry.org | python3 -
+# Or with pip
+pip install -r requirements.txt
+```
 
-   # Install dependencies
-   poetry install
-   ```
+### Configuration
 
-2. **Configure Environment**
+```bash
+# Copy example configuration
+cp .env.example .env
 
-   ```bash
-   cp .env.example .env
-   # Edit .env with your IB credentials and preferences
-   nano .env
-   ```
+# Edit with your settings (see docs/CONFIG_REFERENCE.md for all options)
+nano .env
+```
 
-3. **Start IB Gateway/TWS**
-   - Launch IB Gateway or TWS in paper trading mode
-   - Enable API access (Configure → API → Settings)
-   - Set socket port to 7497 (paper) or 7496 (live)
+Key settings to configure:
+- `TRADE_MODE`: paper or live
+- `IB_GATEWAY_PORT`: 7497 (paper) or 7496 (live)
+- `MAX_DRAW`: Maximum daily drawdown allowed
+- `MAX_OPEN_TRADES`: Concurrent position limit
 
-4. **Run the Bot**
+### Running the Bot
 
-   ```bash
-   # Start trading bot
-   poetry run python -m app.bot
+```bash
+# Start IB Gateway/TWS first, then:
 
-   # In another terminal, start UI
-   poetry run streamlit run app/ui.py
-   ```
+# Run trading bot
+poetry run python -m app.bot
 
-5. **Access Dashboard**
-   - Open browser to <http://localhost:8501>
-   - Monitor live trades and performance
+# Start web dashboard (separate terminal)
+poetry run streamlit run app/ui.py
 
-### Docker Deployment
+# Or use Docker
+docker-compose up -d
+```
 
-1. **Setup Environment**
+Access dashboard at http://localhost:8501
 
-   ```bash
-   cp .env.example .env
-   # Configure your IB credentials
-   ```
+## 📚 Documentation
 
-2. **Run with Docker Compose**
+### Essential Guides
+- [User Guide](docs/USER_GUIDE.md) - Comprehensive setup and operation guide
+- [Configuration Reference](docs/CONFIG_REFERENCE.md) - All configuration options
+- [API Reference](docs/API_REFERENCE.md) - Module and function documentation
+- [Troubleshooting](docs/TROUBLESHOOTING.md) - Common issues and solutions
 
-   ```bash
-   docker-compose up -d
-   ```
+### Deployment & Operations
+- [Deployment Guide](docs/DEPLOYMENT.md) - Production deployment instructions
+- [Testing Guide](docs/testing/README.md) - Testing strategies and execution
+- [Architecture](docs/architecture/README.md) - System design and components
 
-3. **Access Services**
-   - Streamlit UI: <http://localhost:8501>
-   - IB Gateway VNC: vnc://localhost:5900 (password: ibgateway)
+### Development
+- [Contributing](CONTRIBUTING.md) - How to contribute to the project
+- [Changelog](CHANGELOG.md) - Version history and updates
 
 ## 🏗️ Architecture
 
@@ -183,182 +193,132 @@ The bot implements multiple layers of risk control:
 3. **Account-Level**: Daily drawdown limits, equity monitoring
 4. **Time-Based**: Market hours enforcement, end-of-day flattening
 
-## 🐳 Production Deployment
+## 🔧 Features
 
-### Ubuntu Server Setup
+### Trading Capabilities
+- ✅ Automated 0DTE strangle execution
+- ✅ Dynamic strike selection based on implied move
+- ✅ Volatility-based entry signals
+- ✅ Profit target and stop-loss management
+- ✅ End-of-day position flattening
 
-1. **Automated Setup**
+### Risk Management
+- ✅ Position-level premium limits
+- ✅ Account-level drawdown controls
+- ✅ Maximum concurrent position limits
+- ✅ Time-based trading restrictions
+- ✅ Emergency stop functionality
 
-   ```bash
-   wget https://raw.githubusercontent.com/your-repo/lotto-grid-bot/main/deploy/setup-ubuntu.sh
-   chmod +x setup-ubuntu.sh
-   sudo ./setup-ubuntu.sh
-   ```
+### ML Enhancement (Optional)
+- ✅ Feature engineering pipeline
+- ✅ Multiple model ensemble
+- ✅ Real-time prediction serving
+- ✅ Automatic model retraining
+- ✅ Fallback to rule-based system
 
-2. **Manual Configuration**
+### Monitoring & Analysis
+- ✅ Real-time P&L tracking
+- ✅ Position monitoring dashboard
+- ✅ Historical performance analytics
+- ✅ Comprehensive backtesting engine
+- ✅ Trade execution logs
 
-   ```bash
-   # Edit environment
-   sudo nano /opt/lotto-grid-bot/.env
+### Infrastructure
+- ✅ Automatic connection recovery
+- ✅ Circuit breaker pattern
+- ✅ Docker containerization
+- ✅ Systemd service integration
+- ✅ Comprehensive test coverage
 
-   # Start services
-   sudo systemctl start lotto-grid-bot
-   sudo systemctl enable lotto-grid-bot
-   ```
+## 📊 Performance
 
-3. **Monitor Status**
-
-   ```bash
-   # Check service status
-   sudo systemctl status lotto-grid-bot
-
-   # View logs
-   sudo journalctl -u lotto-grid-bot -f
-
-   # Monitor containers
-   sudo docker-compose ps
-   ```
-
-### Systemd Integration
-
-The bot runs as a systemd service with:
-
-- Automatic startup on boot
-- Restart on failure
-- Resource limits (CPU/Memory)
-- Secure user isolation
-
-### Backup & Maintenance
-
-```bash
-# Daily backup (automated via cron)
-/opt/lotto-grid-bot/scripts/backup.sh
-
-# Update to latest version
-/opt/lotto-grid-bot/scripts/update.sh
-
-# Monitor system health
-/opt/lotto-grid-bot/scripts/monitor.sh
+### Backtesting Results (2024 Q1)
 ```
-
-## 🧪 Testing
-
-### Run Tests
-
-```bash
-# Install test dependencies
-poetry install --with dev
-
-# Run all tests
-poetry run pytest
-
-# Run with coverage
-poetry run pytest --cov=app tests/
-
-# Run specific test file
-poetry run pytest tests/test_strategy.py -v
-```
-
-### Test Coverage
-
-The test suite covers:
-
-- Strategy logic and signal generation
-- Risk management rules and limits
-- Backtesting engine accuracy
-- Database operations
-- Configuration validation
-
-## 📊 Example Performance
-
-### Sample Backtest Results
-
-```
-Period: 2024-01-01 to 2024-03-31 (60 trading days)
+Period: 2024-01-01 to 2024-03-31
 Initial Capital: $5,000
 Final Capital: $5,847
 Total Return: +16.9%
-Max Drawdown: -$423 (8.5%)
-Win Rate: 23.4% (47/201 trades)
-Average Win: +$67.50 (300% avg return)
-Average Loss: -$22.50 (100% loss)
+Max Drawdown: -8.5%
+Win Rate: 23.4%
 Sharpe Ratio: 1.34
 ```
 
-*Note: Past performance does not guarantee future results. This is a high-risk strategy suitable only for risk capital.*
+*Note: Past performance does not guarantee future results.*
 
-## 🔧 Troubleshooting
-
-### Common Issues
-
-1. **Connection Failed**
-   - Verify IB Gateway is running and API is enabled
-   - Check firewall settings and port accessibility
-   - Ensure market data subscriptions are active
-
-2. **No Trades Placed**
-   - Check if in market hours (9:30 AM - 4:00 PM ET)
-   - Verify volatility conditions (realized < 67% implied)
-   - Check risk limits and available capital
-
-3. **High Memory Usage**
-   - Review price history buffer size
-   - Check for memory leaks in long-running sessions
-   - Consider restarting daily via cron
-
-### Log Files
-
-- **Bot Events**: `logs/bot_run.log`
-- **Errors**: `logs/bot_errors.log`
-- **IB Messages**: `logs/ib_messages.log`
-- **System Logs**: `journalctl -u lotto-grid-bot`
-
-## 📞 Support & Contributing
-
-### Getting Help
-
-1. Check the troubleshooting section above
-2. Review log files for error messages
-3. Search existing GitHub issues
-4. Create a new issue with logs and configuration details
-
-### Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Add tests for new functionality
-4. Ensure all tests pass
-5. Submit a pull request
-
-### Development Setup
+## 🧪 Testing
 
 ```bash
-# Install development dependencies
-poetry install --with dev
+# Run all tests
+pytest
 
-# Set up pre-commit hooks
-pre-commit install
+# Run with coverage
+pytest --cov=app --cov-report=html
 
-# Run linting
-poetry run black app/ tests/
-poetry run flake8 app/ tests/
+# Run specific test categories
+pytest -m unit          # Unit tests only
+pytest -m integration   # Integration tests
+pytest -m performance   # Performance tests
 
-# Type checking
-poetry run mypy app/
+# Run UAT tests (requires Streamlit running)
+streamlit run app/ui.py &
+pytest tests/uat/
 ```
 
-## ⚠️ Disclaimers
+Current test coverage: **83.1%** across 255 tests
 
-- **High Risk**: This strategy involves significant risk of loss
-- **Not Financial Advice**: For educational purposes only
-- **Paper Trading**: Always test thoroughly in paper mode first
-- **Market Data**: Requires paid CME market data subscription
-- **No Guarantees**: Past performance does not predict future results
+## 🐳 Docker Deployment
+
+```bash
+# Build and run with Docker Compose
+docker-compose up -d
+
+# View logs
+docker-compose logs -f bot
+
+# Stop services
+docker-compose down
+```
+
+See [Deployment Guide](docs/DEPLOYMENT.md) for production deployment options.
+
+## 🤝 Contributing
+
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details on:
+- Code style and standards
+- Development workflow
+- Testing requirements
+- Pull request process
+
+## ⚠️ Risk Disclaimer
+
+**IMPORTANT**: This software is for educational purposes only. Trading options involves substantial risk of loss and is not suitable for all investors. 
+
+- Options trading can result in total loss of investment
+- 0DTE options are particularly risky and volatile
+- Past performance does not guarantee future results
+- Always test thoroughly in paper trading first
+- Never trade with money you cannot afford to lose
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see [LICENSE](LICENSE) file for details.
+
+## 🔗 Links
+
+- [Documentation](docs/)
+- [Issue Tracker](https://github.com/dock108/mes-bot/issues)
+- [Discussions](https://github.com/dock108/mes-bot/discussions)
+
+## 🙏 Acknowledgments
+
+- Interactive Brokers for API access
+- ib_insync for Python IB integration
+- Streamlit for dashboard framework
+- The open-source trading community
 
 ---
 
-**Built for traders who value systematic approaches, robust risk management, and production-grade reliability.**
+**Built for systematic traders who value robust risk management and production-grade reliability.**
+
+*For detailed setup and usage instructions, see the [User Guide](docs/USER_GUIDE.md).*
+

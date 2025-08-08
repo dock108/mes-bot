@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 
 from app.config import config
 from app.data_providers.vix_provider import VIXProvider
+from app.hole_layouts import HoleLayoutManager, PredefinedLayouts
 from app.models import BacktestResult, get_session_maker
 
 logger = logging.getLogger(__name__)
@@ -97,10 +98,12 @@ class BlackScholesCalculator:
 class LottoGridBacktester:
     """Backtesting engine for the Lotto Grid strategy"""
 
-    def __init__(self, database_url: str):
+    def __init__(self, database_url: str, layout_name: str = 'classic'):
         self.session_maker = get_session_maker(database_url)
         self.bs_calculator = BlackScholesCalculator()
         self.vix_provider = None  # Initialize when needed
+        self.hole_manager = HoleLayoutManager()
+        self.hole_manager.set_layout(layout_name)
 
     def fetch_historical_data(
         self, symbol: str, start_date: date, end_date: date, interval: str = "5m"
@@ -225,23 +228,9 @@ class LottoGridBacktester:
 
     def calculate_strike_levels(
         self, underlying_price: float, implied_move: float
-    ) -> List[Tuple[float, float]]:
-        """Calculate strike levels based on implied move"""
-        strike_pairs = []
-
-        # Level 1: 1.25x implied move
-        offset_1 = implied_move * config.trading.implied_move_multiplier_1
-        call_strike_1 = self._round_to_strike(underlying_price + offset_1)
-        put_strike_1 = self._round_to_strike(underlying_price - offset_1)
-        strike_pairs.append((call_strike_1, put_strike_1))
-
-        # Level 2: 1.5x implied move
-        offset_2 = implied_move * config.trading.implied_move_multiplier_2
-        call_strike_2 = self._round_to_strike(underlying_price + offset_2)
-        put_strike_2 = self._round_to_strike(underlying_price - offset_2)
-        strike_pairs.append((call_strike_2, put_strike_2))
-
-        return strike_pairs
+    ) -> List[Dict]:
+        """Calculate strike levels based on hole layout"""
+        return self.hole_manager.calculate_strikes(underlying_price, implied_move)
 
     def _round_to_strike(self, price: float) -> float:
         """Round price to nearest valid strike (25-point increments)"""
@@ -615,13 +604,18 @@ class LottoGridBacktester:
                             decision_info["near_miss_score"] *= 0.9
 
                         # Calculate potential trade details
-                        strike_pairs = self.calculate_strike_levels(current_price, implied_move)
-                        if strike_pairs:
-                            call_strike, put_strike = strike_pairs[0]
+                        strike_levels = self.calculate_strike_levels(current_price, implied_move)
+                        if strike_levels:
+                            # Use the first hole for potential trade info
+                            first_hole = strike_levels[0]
+                            call_strike = first_hole['call_strikes'][0]  # Use start of range
+                            put_strike = first_hole['put_strikes'][1]  # Use end of range
                             decision_info["potential_trade"] = {
                                 "call_strike": call_strike,
                                 "put_strike": put_strike,
                                 "estimated_premium": implied_move * 0.1,  # Rough estimate
+                                "hole_number": first_hole['hole_number'],
+                                "shape": first_hole['shape']
                             }
 
                         # Create decision trace
